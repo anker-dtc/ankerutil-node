@@ -1,0 +1,15 @@
+{
+  "name": "ankerutil-node",
+  "version": "1.0.0",
+  "description": "Anker utility library for Node.js",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "jest"
+  },
+  "dependencies": {
+    "crypto": "^1.0.1"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  }
+} 
