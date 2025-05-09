@@ -1,13 +1,16 @@
 {
   "name": "ankerutil-node",
   "version": "1.0.0",
-  "description": "Anker utility library for Node.js",
-  "main": "src/index.js",
+  "description": "Node.js 敏感数据加密工具库",
+  "main": "index.js",
   "scripts": {
     "test": "jest"
   },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
   "dependencies": {
-    "crypto": "^1.0.1"
+    "chai": "^4.3.10"
   },
   "devDependencies": {
     "jest": "^29.7.0"
