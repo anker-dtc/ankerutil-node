@@ -1,24 +1,43 @@
-const crypto = require('crypto');
+import * as crypto from 'crypto';
 
-class SensitiveData {
+interface RootKey {
+  [version: string]: string;
+}
+
+interface Constants {
+  SENSITIVE_DATA_KEY_LEN: number;
+  SENSITIVE_ROOT_KEY_LEN: number;
+  SENSITIVE_ROOT_KEY_VERSION_LEN: number;
+  DEFAULT_ROOT_KEY_VERSION: string;
+  NEW_CIPHERTEXT_SPLIT_LEN: number;
+  OLD_CIPHERTEXT_SPLIT_LEN: number;
+  AES_BLOCK_SIZE: number;
+}
+
+export class SensitiveData {
+  private sensitiveDataKey: string | null;
+  private sensitiveRootKey: RootKey;
+  private sensitiveRootKeyVersion: string | null;
+  private sensitiveRootKeyValue: string | null;
+
+  private readonly CONSTANTS: Constants = {
+    SENSITIVE_DATA_KEY_LEN: 64,
+    SENSITIVE_ROOT_KEY_LEN: 32,
+    SENSITIVE_ROOT_KEY_VERSION_LEN: 4,
+    DEFAULT_ROOT_KEY_VERSION: '0001',
+    NEW_CIPHERTEXT_SPLIT_LEN: 4,
+    OLD_CIPHERTEXT_SPLIT_LEN: 2,
+    AES_BLOCK_SIZE: 16
+  };
+
   constructor() {
     this.sensitiveDataKey = null;
     this.sensitiveRootKey = {};
     this.sensitiveRootKeyVersion = null;
     this.sensitiveRootKeyValue = null;
-
-    this.CONSTANTS = {
-      SENSITIVE_DATA_KEY_LEN: 64,
-      SENSITIVE_ROOT_KEY_LEN: 32,
-      SENSITIVE_ROOT_KEY_VERSION_LEN: 4,
-      DEFAULT_ROOT_KEY_VERSION: '0001',
-      NEW_CIPHERTEXT_SPLIT_LEN: 4,
-      OLD_CIPHERTEXT_SPLIT_LEN: 2,
-      AES_BLOCK_SIZE: 16
-    };
   }
 
-  initSensitiveKey(cbcKey, rootKey) {
+  initSensitiveKey(cbcKey: string, rootKey: RootKey): void {
     // 验证 cbcKey
     if (cbcKey.length !== this.CONSTANTS.SENSITIVE_DATA_KEY_LEN) {
       throw new Error('InitSensitiveKey cbcKey len invalid');
@@ -60,7 +79,7 @@ class SensitiveData {
     }
   }
 
-  aesCbcEncrypt(plaintext, key) {
+  private aesCbcEncrypt(plaintext: string, key: string): string {
     if (!plaintext) return '';
     
     try {
@@ -77,11 +96,11 @@ class SensitiveData {
       
       return Buffer.concat([iv, encrypted]).toString('base64');
     } catch (error) {
-      throw new Error(`AES CBC Encryption failed: ${error.message}`);
+      throw new Error(`AES CBC Encryption failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
-  aesCbcDecrypt(ciphertext, key) {
+  private aesCbcDecrypt(ciphertext: string, key: string): string {
     if (!ciphertext) return '';
     
     try {
@@ -105,18 +124,18 @@ class SensitiveData {
     }
   }
 
-  sha256(text) {
+  private sha256(text: string): string {
     const utf8Text = String(text);
     return crypto.createHash('sha256')
       .update(utf8Text, 'utf8')
       .digest('hex');
   }
 
-  generateAesKey() {
+  private generateAesKey(): string {
     return crypto.randomBytes(16).toString('hex');
   }
 
-  aes128Sha256EncryptSensitiveData(plaintext) {
+  aes128Sha256EncryptSensitiveData(plaintext: string): string {
     if (!plaintext) return '';
 
     try {
@@ -124,7 +143,7 @@ class SensitiveData {
       const digest = this.sha256(utf8Plaintext);
       const dataKey = this.generateAesKey();
       const secretData = this.aesCbcEncrypt(utf8Plaintext, dataKey);
-      const envelopeKey = this.aesCbcEncrypt(dataKey, this.sensitiveRootKeyValue);
+      const envelopeKey = this.aesCbcEncrypt(dataKey, this.sensitiveRootKeyValue!);
 
       return `${this.sensitiveRootKeyVersion}^${envelopeKey}^${digest}^${secretData}`;
     } catch (error) {
@@ -132,7 +151,7 @@ class SensitiveData {
     }
   }
 
-  aes128Sha256DecryptSensitiveData(ciphertext) {
+  aes128Sha256DecryptSensitiveData(ciphertext: string): string {
     if (!ciphertext) return '';
 
     try {
@@ -167,7 +186,7 @@ class SensitiveData {
     }
   }
 
-  decryptSensitiveDataByDataKey(ciphertext) {
+  private decryptSensitiveDataByDataKey(ciphertext: string): string {
     try {
       const parts = ciphertext.split('^');
       if (parts.length !== this.CONSTANTS.OLD_CIPHERTEXT_SPLIT_LEN) {
@@ -179,11 +198,9 @@ class SensitiveData {
         return '';
       }
 
-      return this.aesCbcDecrypt(secretData, this.sensitiveDataKey);
+      return this.aesCbcDecrypt(secretData, this.sensitiveDataKey!);
     } catch (error) {
       return '';  // 解密失败时返回空字符串
     }
   }
-}
-
-module.exports = { SensitiveData }; 
+} 
