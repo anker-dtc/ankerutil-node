@@ -13,7 +13,8 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "chai": "^4.3.10"
+    "chai": "^4.3.10",
+    "nacos": "^2.6.0"
   },
   "devDependencies": {
     "@types/node": "^18.11.9",
