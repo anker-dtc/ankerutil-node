@@ -107,8 +107,8 @@ export class SensitiveData {
       const keyBytes = Buffer.from(key, 'hex');
       const data = Buffer.from(ciphertext, 'base64');
       
-      const iv = data.slice(0, this.CONSTANTS.AES_BLOCK_SIZE);
-      const encryptedData = data.slice(this.CONSTANTS.AES_BLOCK_SIZE);
+      const iv = data.subarray(0, this.CONSTANTS.AES_BLOCK_SIZE);
+      const encryptedData = data.subarray(this.CONSTANTS.AES_BLOCK_SIZE);
       
       const decipher = crypto.createDecipheriv('aes-128-cbc', keyBytes, iv);
       decipher.setAutoPadding(true);  // 使用 PKCS7 填充
@@ -203,4 +203,4 @@ export class SensitiveData {
       return '';  // 解密失败时返回空字符串
     }
   }
-} 
+}

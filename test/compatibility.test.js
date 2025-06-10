@@ -53,4 +53,4 @@ describe('Go 版本兼容性测试', () => {
       .digest('hex');
     expect(parts[2]).toBe(expectedDigest);
   });
-}); 
+});

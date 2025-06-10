@@ -1,1 +1,1 @@
-export { SensitiveData } from './sensitive_data'; 
+export { SensitiveData } from './sensitive_data';

@@ -51,4 +51,4 @@ describe('Decrypt Test Cases', () => {
       expect(decrypted).toBe(testCase.input);
     });
   });
-}); 
+});
