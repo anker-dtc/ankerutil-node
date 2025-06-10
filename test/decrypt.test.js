@@ -1,4 +1,4 @@
-const { SensitiveData } = require('../lib/sensitive_data');
+const { SensitiveData } = require('../dist/sensitive_data');
 
 describe('Decrypt Test Cases', () => {
   let sensitiveData;
