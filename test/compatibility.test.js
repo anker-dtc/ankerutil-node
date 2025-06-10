@@ -1,4 +1,4 @@
-const { SensitiveData } = require('../lib/sensitive_data');
+const { SensitiveData } = require('../dist/sensitive_data');
 const crypto = require('crypto');
 
 describe('Go 版本兼容性测试', () => {

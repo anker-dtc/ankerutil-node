@@ -1,5 +1,5 @@
 const { expect } = require('chai');
-const { SensitiveData } = require('../lib/sensitive_data');
+const { SensitiveData } = require('../dist/sensitive_data');
 
 describe('敏感数据加密边界情况测试', () => {
   let sensitiveData;
