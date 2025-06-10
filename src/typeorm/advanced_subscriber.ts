@@ -463,4 +463,8 @@ export function createEncryptedJsonFieldDecorator(options: EncryptedJsonFieldOpt
     }
     target.constructor.__encryptedJsonFields.push({ field: propertyKey, options });
   };
-} 
+}
+
+// 装饰器别名导出
+export const EncryptedField = createEncryptedFieldDecorator;
+export const EncryptedJsonField = createEncryptedJsonFieldDecorator; 

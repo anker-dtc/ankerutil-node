@@ -1,35 +1,24 @@
 {
   "name": "ankerutil-node",
   "version": "1.0.0",
-  "description": "Node.js 敏感数据加密工具库 - 支持 NestJS 7.x/9.x 和 Express.js 4.x",
+  "description": "Node.js 敏感数据加密工具库 - 提供AES加密算法和TypeORM字段装饰器",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
     "prepare": "npm run build",
-    "test": "jest",
-    "test:compatibility": "npx ts-node examples/multi-framework-compatibility.ts",
-    "test:nodejs": "npx ts-node examples/nestjs-integration-example.ts",
-    "clean": "rm -rf dist node_modules package-lock.json",
-    "rebuild": "npm run clean && npm install && npm run build"
+    "test": "jest"
   },
   "keywords": [
     "encryption",
-    "decryption",
-    "sensitive-data",
-    "nestjs",
-    "express",
-    "nodejs",
-    "typescript",
     "aes",
-    "sha256"
+    "typeorm",
+    "decorator",
+    "nodejs",
+    "typescript"
   ],
   "author": "",
   "license": "MIT",
-  "dependencies": {
-    "chai": "^4.3.10",
-    "nacos": "^2.6.0"
-  },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "jest": "^29.7.0",
@@ -40,14 +29,10 @@
     "node": ">=18.0.0"
   },
   "peerDependencies": {
-    "@nestjs/common": ">=7.0.0",
-    "express": ">=4.0.0"
+    "typeorm": ">=0.2.0"
   },
   "peerDependenciesMeta": {
-    "@nestjs/common": {
-      "optional": true
-    },
-    "express": {
+    "typeorm": {
       "optional": true
     }
   },
