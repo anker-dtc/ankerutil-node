@@ -4,6 +4,9 @@ export * from "./sensitive";
 // 导出TypeORM字段装饰器
 export * from "./typeorm/field";
 
+// 导出TypeORM哈希字段装饰器
+export * from "./typeorm/hash";
+
 // 导出TypeORM JSON装饰器（重命名EncryptionError以避免冲突）
 export { 
   EncryptedJsonFieldOptions,
@@ -17,3 +20,6 @@ export {
 
 // 导出TypeORM订阅器
 export * from "./typeorm/subscriber";
+
+// 导出哈希工具
+export * from "./hash";

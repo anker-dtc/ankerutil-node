@@ -1,13 +1,12 @@
 {
   "name": "ankerutil-node",
-  "version": "1.0.0",
-  "description": "Node.js 敏感数据加密工具库 - 提供AES加密算法和TypeORM字段装饰器",
+  "version": "1.2.0",
+  "description": "Node.js 敏感数据加密工具库 - 提供AES加密算法、TypeORM字段装饰器和哈希字段功能",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "prepare": "npm run build",
-    "test": "jest"
+    "prepare": "npm run build"
   },
   "keywords": [
     "encryption",
@@ -15,14 +14,14 @@
     "typeorm",
     "decorator",
     "nodejs",
-    "typescript"
+    "typescript",
+    "hash",
+    "sha256"
   ],
   "author": "",
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^22.0.0",
-    "jest": "^29.7.0",
-    "ts-node": "^10.9.2",
     "typescript": "^5.4.0"
   },
   "engines": {
