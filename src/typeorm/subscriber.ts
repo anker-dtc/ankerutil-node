@@ -1,4 +1,5 @@
 import { SensitiveData } from '../sensitive';
+import { HashUtil } from '../hash';
 import { 
   EncryptedFieldOptions, 
   getEncryptedFields,
@@ -11,6 +12,9 @@ import {
   getEncryptedJsonFields,
   EncryptionError as JsonEncryptionError
 } from './json';
+import {
+  getHashFields
+} from './hash';
 
 // TypeORM接口定义
 interface EntitySubscriberInterface {
@@ -50,7 +54,10 @@ export class EncryptionSubscriber implements EntitySubscriberInterface {
     if (!options.autoEncrypt || entity[field] == null) return;
     
     try {
-      entity[field] = EncryptionSubscriber.encryptionService.aes128Sha256EncryptSensitiveData(String(entity[field]));
+      const originalValue = String(entity[field]);
+      
+      // 加密字段
+      entity[field] = EncryptionSubscriber.encryptionService.aes128Sha256EncryptSensitiveData(originalValue);
     } catch (error) {
       throw new FieldEncryptionError(
         `Failed to encrypt field: ${error instanceof Error ? error.message : String(error)}`, 
@@ -59,6 +66,23 @@ export class EncryptionSubscriber implements EntitySubscriberInterface {
         undefined, 
         error instanceof Error ? error : undefined
       );
+    }
+  }
+
+  /**
+   * 生成哈希字段
+   */
+  private async generateHashField(entity: any, field: string, hashFieldName: string, encoding: string): Promise<void> {
+    if (entity[field] == null) return;
+    
+    try {
+      const originalValue = String(entity[field]);
+      const hashValue = HashUtil.sha256(originalValue, encoding as 'hex' | 'base64');
+      entity[hashFieldName] = hashValue;
+      
+      this.logger.debug(`为字段 ${field} 生成哈希字段 ${hashFieldName}: ${hashValue}`);
+    } catch (hashError) {
+      this.logger.warn(`生成哈希字段失败，字段: ${field}, 错误: ${hashError instanceof Error ? hashError.message : String(hashError)}`);
     }
   }
 
@@ -258,6 +282,7 @@ export class EncryptionSubscriber implements EntitySubscriberInterface {
       throw new FieldEncryptionError('Encryption service not initialized', 'encryption', 'encrypt');
     }
 
+    // 处理加密字段
     const encryptedFields = getEncryptedFields(entity.constructor);
     for (const { field, options } of encryptedFields) {
       try {
@@ -267,12 +292,23 @@ export class EncryptionSubscriber implements EntitySubscriberInterface {
       }
     }
 
+    // 处理JSON加密字段
     const encryptedJsonFields = getEncryptedJsonFields(entity.constructor);
     for (const { field, options } of encryptedJsonFields) {
       try {
         await this.encryptJsonField(entity, field, options);
       } catch (error) {
         this.handleEncryptionError(error, 'encrypt');
+      }
+    }
+
+    // 处理哈希字段
+    const hashFields = getHashFields(entity.constructor);
+    for (const { field, hashFieldName, encoding } of hashFields) {
+      try {
+        await this.generateHashField(entity, field, hashFieldName, encoding);
+      } catch (error) {
+        this.logger.warn(`生成哈希字段失败，字段: ${field}, 错误: ${error instanceof Error ? error.message : String(error)}`);
       }
     }
   }
@@ -313,6 +349,7 @@ export class EncryptionSubscriber implements EntitySubscriberInterface {
     const entity = event.entity;
     if (!entity) return;
 
+    // 处理加密字段
     const encryptedFields = getEncryptedFields(entity.constructor);
     for (const { field, options } of encryptedFields) {
       try {
@@ -322,12 +359,23 @@ export class EncryptionSubscriber implements EntitySubscriberInterface {
       }
     }
 
+    // 处理JSON加密字段
     const encryptedJsonFields = getEncryptedJsonFields(entity.constructor);
     for (const { field, options } of encryptedJsonFields) {
       try {
         await this.encryptJsonField(entity, field, options);
       } catch (error) {
         this.handleEncryptionError(error, 'encrypt');
+      }
+    }
+
+    // 处理哈希字段
+    const hashFields = getHashFields(entity.constructor);
+    for (const { field, hashFieldName, encoding } of hashFields) {
+      try {
+        await this.generateHashField(entity, field, hashFieldName, encoding);
+      } catch (error) {
+        this.logger.warn(`生成哈希字段失败，字段: ${field}, 错误: ${error instanceof Error ? error.message : String(error)}`);
       }
     }
   }
