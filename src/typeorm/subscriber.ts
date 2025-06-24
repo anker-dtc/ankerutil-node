@@ -73,13 +73,11 @@ export class EncryptionSubscriber implements EntitySubscriberInterface {
    * 生成哈希字段
    */
   private async generateHashField(entity: any, field: string, hashFieldName: string, encoding: string): Promise<void> {
-    if (entity[field] == null) return;
-    
     try {
-      const originalValue = String(entity[field]);
-      const hashValue = HashUtil.sha256(originalValue, encoding as 'hex' | 'base64');
+      // 直接传递原始值，让HashUtil内部处理所有情况（null、undefined、空字符串等）
+      const hashValue = HashUtil.sha256(entity[field], encoding as 'hex' | 'base64');
+      // 设置哈希字段，包括null值（保持与HashUtil.sha256完全一致）
       entity[hashFieldName] = hashValue;
-      
       this.logger.debug(`为字段 ${field} 生成哈希字段 ${hashFieldName}: ${hashValue}`);
     } catch (hashError) {
       this.logger.warn(`生成哈希字段失败，字段: ${field}, 错误: ${hashError instanceof Error ? hashError.message : String(hashError)}`);
