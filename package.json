@@ -1,7 +1,7 @@
 {
   "name": "ankerutil-node",
-  "version": "1.2.0",
-  "description": "Node.js 敏感数据加密工具库 - 提供AES加密算法、TypeORM字段装饰器和哈希字段功能",
+  "version": "1.3.0",
+  "description": "Node.js 敏感数据加密工具库 - 提供AES加密算法、TypeORM字段装饰器和哈希字段功能，支持行业标准的空值处理和安全异常机制",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -16,7 +16,9 @@
     "nodejs",
     "typescript",
     "hash",
-    "sha256"
+    "sha256",
+    "security",
+    "null-handling"
   ],
   "author": "",
   "license": "MIT",

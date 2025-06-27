@@ -80,7 +80,9 @@ export class SensitiveData {
   }
 
   private aesCbcEncrypt(plaintext: string, key: string): string {
-    if (!plaintext) return '';
+    if (!plaintext) {
+      throw new Error('Plaintext cannot be empty');
+    }
     
     try {
       const keyBytes = Buffer.from(key, 'hex');
@@ -101,7 +103,9 @@ export class SensitiveData {
   }
 
   private aesCbcDecrypt(ciphertext: string, key: string): string {
-    if (!ciphertext) return '';
+    if (!ciphertext) {
+      throw new Error('Ciphertext cannot be empty');
+    }
     
     try {
       const keyBytes = Buffer.from(key, 'hex');
@@ -120,7 +124,7 @@ export class SensitiveData {
       
       return decrypted.toString('utf8');
     } catch (error) {
-      return '';  // 解密失败时返回空字符串
+      throw new Error(`AES CBC Decryption failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -136,23 +140,31 @@ export class SensitiveData {
   }
 
   aes128Sha256EncryptSensitiveData(plaintext: string): string {
-    if (!plaintext) return '';
+    if (!plaintext) {
+      throw new Error('Plaintext cannot be empty');
+    }
+
+    if (!this.sensitiveRootKeyValue || !this.sensitiveRootKeyVersion) {
+      throw new Error('Sensitive keys not initialized. Call initSensitiveKey() first.');
+    }
 
     try {
       const utf8Plaintext = String(plaintext);
       const digest = this.sha256(utf8Plaintext);
       const dataKey = this.generateAesKey();
       const secretData = this.aesCbcEncrypt(utf8Plaintext, dataKey);
-      const envelopeKey = this.aesCbcEncrypt(dataKey, this.sensitiveRootKeyValue!);
+      const envelopeKey = this.aesCbcEncrypt(dataKey, this.sensitiveRootKeyValue);
 
       return `${this.sensitiveRootKeyVersion}^${envelopeKey}^${digest}^${secretData}`;
     } catch (error) {
-      return '';  // 加密失败时返回空字符串
+      throw new Error(`Encryption failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
   aes128Sha256DecryptSensitiveData(ciphertext: string): string {
-    if (!ciphertext) return '';
+    if (!ciphertext) {
+      throw new Error('Ciphertext cannot be empty');
+    }
 
     try {
       const parts = ciphertext.split('^');
@@ -162,19 +174,27 @@ export class SensitiveData {
         const [rootKeyVersion, envelopeKey, digest, secretData] = parts;
 
         if (!rootKeyVersion || !envelopeKey || !digest || !secretData) {
-          return '';
+          throw new Error('Invalid ciphertext format: missing required parts');
         }
 
         const rootKey = this.sensitiveRootKey[rootKeyVersion];
-        if (!rootKey) return '';  // 如果找不到对应版本的root_key，返回空字符串
+        if (!rootKey) {
+          throw new Error(`Root key version '${rootKeyVersion}' not found`);
+        }
 
         const dataKey = this.aesCbcDecrypt(envelopeKey, rootKey);
-        if (!dataKey) return '';
+        if (!dataKey) {
+          throw new Error('Failed to decrypt envelope key');
+        }
 
         const plaintext = this.aesCbcDecrypt(secretData, dataKey);
-        if (!plaintext) return '';
+        if (!plaintext) {
+          throw new Error('Failed to decrypt secret data');
+        }
 
-        if (this.sha256(plaintext) !== digest) return '';
+        if (this.sha256(plaintext) !== digest) {
+          throw new Error('Data integrity check failed: SHA256 digest mismatch');
+        }
 
         return plaintext;
       } else {
@@ -182,25 +202,29 @@ export class SensitiveData {
         return this.decryptSensitiveDataByDataKey(ciphertext);
       }
     } catch (error) {
-      return '';  // 解密失败时返回空字符串
+      throw new Error(`Decryption failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
   private decryptSensitiveDataByDataKey(ciphertext: string): string {
+    if (!this.sensitiveDataKey) {
+      throw new Error('Sensitive data key not initialized. Call initSensitiveKey() first.');
+    }
+
     try {
       const parts = ciphertext.split('^');
       if (parts.length !== this.CONSTANTS.OLD_CIPHERTEXT_SPLIT_LEN) {
-        return '';
+        throw new Error('Invalid legacy ciphertext format');
       }
 
       const [rootKeyVersion, secretData] = parts;
       if (rootKeyVersion !== this.CONSTANTS.DEFAULT_ROOT_KEY_VERSION || !secretData) {
-        return '';
+        throw new Error('Invalid legacy ciphertext: version mismatch or missing secret data');
       }
 
-      return this.aesCbcDecrypt(secretData, this.sensitiveDataKey!);
+      return this.aesCbcDecrypt(secretData, this.sensitiveDataKey);
     } catch (error) {
-      return '';  // 解密失败时返回空字符串
+      throw new Error(`Legacy decryption failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 }

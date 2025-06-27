@@ -2,6 +2,24 @@
 
 Node.js 敏感数据加密工具库 - 提供AES加密算法、TypeORM字段装饰器和哈希字段功能
 
+## 更新日志
+
+### v1.3.0
+- 🔒 **安全性改进**：核心加密方法失败时抛出异常而非返回空字符串，避免数据丢失风险
+- 🛡️ **异常处理优化**：TypeORM订阅器自动捕获解密异常并保持原值
+- ⚡ **空值处理**：默认跳过null、undefined、空字符串的加解密操作，符合行业最佳实践
+
+### v1.2.0
+- ✨ 新增JSON字段加密功能，支持复杂嵌套对象和数组
+- 🔧 优化TypeORM集成，支持自动加密解密
+
+### v1.1.0
+- 🎯 新增哈希字段功能
+- 📦 完善TypeScript类型定义
+
+### v1.0.0
+- 🚀 初始版本发布
+
 ## 核心功能
 
 - **AES-128-SHA256 加密算法**：高性能的敏感数据加密解密
@@ -123,96 +141,3 @@ class HashUtil {
   static verifySha256(text: string, expectedHash: string, encoding?: 'hex' | 'base64'): boolean;
 }
 ```
-
-### 装饰器
-
-#### @EncryptedField
-
-```typescript
-@EncryptedField(options?: { autoEncrypt?: boolean })
-email: string;
-```
-
-#### @HashField
-
-```typescript
-@HashField(hashFieldName?: string)
-email: string;
-```
-
-**参数说明**：
-- `hashFieldName` (可选)：哈希字段名称
-  - 不传参数：自动生成哈希字段名（原字段名 + '_sha256'）
-  - 传字符串：使用指定的哈希字段名
-
-#### @EncryptedJsonField
-
-```typescript
-@EncryptedJsonField(options: {
-  autoEncrypt?: boolean;
-  paths: string[];
-})
-personalInfo: any;
-```
-
-**支持的路径格式**：
-- 普通对象：`['name', 'contactInfo.email']`
-- 根数组：`['[].street', '[].city']`
-- 嵌套数组：`['addresses[].street', 'addresses[].contacts[].email']`
-
-## 使用示例
-
-```typescript
-@Entity('users')
-export class User {
-  @PrimaryGeneratedColumn()
-  id: number;
-
-  @EncryptedField()
-  @HashField()
-  email: string;
-
-  @EncryptedField()
-  @HashField('phoneHash')
-  phone: string;
-
-  // JSON字段加密 - 嵌套对象
-  @EncryptedJsonField({
-    autoEncrypt: true,
-    paths: ['name', 'idCard', 'contactInfo.email', 'contactInfo.phone']
-  })
-  @Column({ type: 'jsonb', nullable: true })
-  personalInfo: {
-    name: string;
-    idCard: string;
-    contactInfo: {
-      email: string;
-      phone: string;
-    };
-  };
-
-  // JSON字段加密 - 数组
-  @EncryptedJsonField({
-    autoEncrypt: true,
-    paths: ['[].street', '[].city', '[].contacts[].email']
-  })
-  @Column({ type: 'jsonb', nullable: true })
-  addresses: Array<{
-    street: string;
-    city: string;
-    contacts: Array<{
-      email: string;
-    }>;
-  }>;
-
-  @Column({ type: 'varchar', nullable: true })
-  email_sha256: string;
-
-  @Column({ type: 'varchar', nullable: true })
-  phoneHash: string;
-}
-```
-
-## 许可证
-
-MIT
