@@ -51,13 +51,28 @@ export class EncryptionSubscriber implements EntitySubscriberInterface {
    * 加密普通字段
    */
   private async encryptField(entity: any, field: string, options: EncryptedFieldOptions): Promise<void> {
-    if (!options.autoEncrypt || entity[field] == null) return;
+    if (!options.autoEncrypt) return;
     
+    const value = entity[field];
+    
+    // 按照行业最佳实践处理空值
+    // 1. null 和 undefined 不加密，保持原值
+    if (value == null) {
+      this.logger.debug(`跳过null/undefined值加密，字段: ${field}`);
+      return;
+    }
+    
+    // 2. 空字符串不加密，保持原值
+    if (value === '') {
+      this.logger.debug(`跳过空字符串加密，字段: ${field}`);
+      return;
+    }
+    
+    // 3. 非字符串类型转换为字符串后加密
     try {
-      const originalValue = String(entity[field]);
-      
-      // 加密字段
-      entity[field] = EncryptionSubscriber.encryptionService.aes128Sha256EncryptSensitiveData(originalValue);
+      const stringValue = String(value);
+      entity[field] = EncryptionSubscriber.encryptionService.aes128Sha256EncryptSensitiveData(stringValue);
+      this.logger.debug(`字段加密成功: ${field}`);
     } catch (error) {
       throw new FieldEncryptionError(
         `Failed to encrypt field: ${error instanceof Error ? error.message : String(error)}`, 
@@ -88,22 +103,31 @@ export class EncryptionSubscriber implements EntitySubscriberInterface {
    * 解密普通字段
    */
   private async decryptField(entity: any, field: string, options: EncryptedFieldOptions): Promise<void> {
-    if (entity[field] == null) return;
+    const value = entity[field];
     
-    const originalValue = entity[field];
+    // 按照行业最佳实践处理空值
+    // 1. null 和 undefined 不解密，保持原值
+    if (value == null) {
+      this.logger.debug(`跳过null/undefined值解密，字段: ${field}`);
+      return;
+    }
+    
+    // 2. 空字符串不解密，保持原值
+    if (value === '') {
+      this.logger.debug(`跳过空字符串解密，字段: ${field}`);
+      return;
+    }
+    
+    // 3. 尝试解密非空值
+    const originalValue = value;
     try {
       const decryptedValue = EncryptionSubscriber.encryptionService.aes128Sha256DecryptSensitiveData(String(originalValue));
       
-      // 只有在解密后的值不为空时才更新
-      if (decryptedValue !== null && decryptedValue !== undefined && decryptedValue !== '') {
-        entity[field] = decryptedValue;
-      } else {
-        // 如果解密后为空，保持原值
-        entity[field] = originalValue;
-        this.logger.warn(`解密结果为空，保持原值，字段: ${field}`);
-      }
+      // 解密成功，使用解密后的值
+      entity[field] = decryptedValue;
+      this.logger.debug(`字段解密成功: ${field}`);
     } catch (error) {
-      // 解密失败时保持原值
+      // 解密失败时保持原值（可能是明文数据）
       entity[field] = originalValue;
       this.logger.warn(`解密失败，保持原值，字段: ${field}, 错误: ${error instanceof Error ? error.message : String(error)}`);
     }
@@ -160,13 +184,8 @@ export class EncryptionSubscriber implements EntitySubscriberInterface {
           } else {
             // 解密时，支持明文和密文
             const decryptedValue = EncryptionSubscriber.encryptionService.aes128Sha256DecryptSensitiveData(value);
-            // 只有在解密后的值不为空时才更新
-            if (decryptedValue !== null && decryptedValue !== undefined && decryptedValue !== '') {
-              obj[segment.key] = decryptedValue;
-            } else {
-              // 如果解密后为空，保持原值
-              this.logger.warn(`解密结果为空，保持原值，路径: '${newPath}'`);
-            }
+            // 解密成功，直接使用解密后的值（包括空字符串）
+            obj[segment.key] = decryptedValue;
           }
         } catch (error) {
           // 如果是解密错误，记录警告但继续处理
@@ -211,11 +230,27 @@ export class EncryptionSubscriber implements EntitySubscriberInterface {
    * 加密JSON字段
    */
   private async encryptJsonField(entity: any, field: string, options: EncryptedJsonFieldOptions): Promise<void> {
-    if (!options.autoEncrypt || entity[field] == null) return;
+    if (!options.autoEncrypt) return;
     
+    const value = entity[field];
+    
+    // 按照行业最佳实践处理空值
+    // 1. null 和 undefined 不加密，保持原值
+    if (value == null) {
+      this.logger.debug(`跳过null/undefined值JSON加密，字段: ${field}`);
+      return;
+    }
+    
+    // 2. 空对象不加密，保持原值
+    if (typeof value === 'object' && Object.keys(value).length === 0) {
+      this.logger.debug(`跳过空对象JSON加密，字段: ${field}`);
+      return;
+    }
+    
+    // 3. 处理有效的JSON对象
     try {
-      const fieldValue = entity[field];
-      await this.processNestedFields(fieldValue, options.paths, 'encrypt');
+      await this.processNestedFields(value, options.paths, 'encrypt');
+      this.logger.debug(`JSON字段加密成功: ${field}`);
     } catch (error) {
       if (error instanceof JsonEncryptionError) throw error;
       throw new JsonEncryptionError(
@@ -232,16 +267,30 @@ export class EncryptionSubscriber implements EntitySubscriberInterface {
    * 解密JSON字段
    */
   private async decryptJsonField(entity: any, field: string, options: EncryptedJsonFieldOptions): Promise<void> {
-    if (entity[field] == null) return;
+    const value = entity[field];
     
+    // 按照行业最佳实践处理空值
+    // 1. null 和 undefined 不解密，保持原值
+    if (value == null) {
+      this.logger.debug(`跳过null/undefined值JSON解密，字段: ${field}`);
+      return;
+    }
+    
+    // 2. 空对象不解密，保持原值
+    if (typeof value === 'object' && Object.keys(value).length === 0) {
+      this.logger.debug(`跳过空对象JSON解密，字段: ${field}`);
+      return;
+    }
+    
+    // 3. 处理有效的JSON对象
     try {
-      const fieldValue = entity[field];
-      await this.processNestedFields(fieldValue, options.paths, 'decrypt');
+      await this.processNestedFields(value, options.paths, 'decrypt');
+      this.logger.debug(`JSON字段解密成功: ${field}`);
     } catch (error) {
       if (error instanceof JsonEncryptionError) throw error;
-      // 解密失败时保持原值
+      // 解密失败时保持原值（可能是明文数据）
       this.logger.warn(
-        `解密失败，可能是明文数据，字段: ${field}, 错误: ${error instanceof Error ? error.message : String(error)}`,
+        `JSON解密失败，可能是明文数据，字段: ${field}, 错误: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }
