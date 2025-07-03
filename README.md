@@ -4,6 +4,12 @@ Node.js 敏感数据加密工具库 - 提供AES加密算法、TypeORM字段装�
 
 ## 更新日志
 
+### v1.4.0
+- 🔄 **Hash重构**：`HashUtil`→`Hash`，将原来的`sha256`方法拆分为`sha256`（纯哈希）和`normalizeSha256`（标准化哈希）
+- 📝 **方法重命名**：`verifySha256`重命名为`verify`，新增`verifyNormalized`方法
+- 🔧 **API简化**：`SensitiveData`→`Encryption`，`initSensitiveKey`→`init`，`aes128Sha256EncryptSensitiveData`→`encrypt`，`aes128Sha256DecryptSensitiveData`→`decrypt`
+- ⚠️ **破坏性变更**：原来使用`HashUtil.sha256`的地方需要改为`Hash.normalizeSha256`以保持相同功能
+
 ### v1.3.0
 - 🔒 **安全性改进**：核心加密方法失败时抛出异常而非返回空字符串，避免数据丢失风险
 - 🛡️ **异常处理优化**：TypeORM订阅器自动捕获解密异常并保持原值
@@ -40,20 +46,20 @@ npm install ankerutil-node
 ### 基础使用
 
 ```typescript
-import { SensitiveData, HashUtil, EncryptedField, HashField } from 'ankerutil-node';
+import { Encryption, Hash, EncryptedField, HashField } from 'ankerutil-node';
 
 // 敏感数据加密
-const sensitiveData = new SensitiveData();
+const encryption = new Encryption();
 const cbcKey = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 const rootKey = { "0001": "0123456789abcdef0123456789abcdef" };
-sensitiveData.initSensitiveKey(cbcKey, rootKey);
+encryption.init(cbcKey, rootKey);
 
-const encrypted = sensitiveData.aes128Sha256EncryptSensitiveData("敏感数据");
-const decrypted = sensitiveData.aes128Sha256DecryptSensitiveData(encrypted);
+const encrypted = encryption.encrypt("敏感数据");
+const decrypted = encryption.decrypt(encrypted);
 
 // 哈希工具
-const hash = HashUtil.sha256("Hello, World!");
-const isValid = HashUtil.verifySha256("Hello, World!", hash);
+const hash = Hash.normalizeSha256("Hello, World!");
+const isValid = Hash.verifyNormalized("Hello, World!", hash);
 
 // TypeORM实体装饰器
 @Entity('users')
@@ -114,30 +120,32 @@ export class UserEntity {
 }
 
 // 注册订阅器
-const sensitiveData = new SensitiveData();
-sensitiveData.initSensitiveKey(cbcKey, rootKey);
+const encryption = new Encryption();
+encryption.init(cbcKey, rootKey);
 TypeOrmModule.forRoot({
-  subscribers: [new EncryptionSubscriber(sensitiveData, logger)]
+  subscribers: [new EncryptionSubscriber(encryption, logger)]
 });
 ```
 
 ## API
 
-### SensitiveData
+### Encryption
 
 ```typescript
-class SensitiveData {
-  initSensitiveKey(cbcKey: string, rootKey: { [version: string]: string }): void;
-  aes128Sha256EncryptSensitiveData(text: string): string;
-  aes128Sha256DecryptSensitiveData(encryptedText: string): string;
+class Encryption {
+  init(cbcKey: string, rootKey: { [version: string]: string }): void;
+  encrypt(text: string): string;
+  decrypt(encryptedText: string): string;
 }
 ```
 
-### HashUtil
+### Hash
 
 ```typescript
-class HashUtil {
+class Hash {
   static sha256(text: string, encoding?: 'hex' | 'base64'): string;
-  static verifySha256(text: string, expectedHash: string, encoding?: 'hex' | 'base64'): boolean;
+  static normalizeSha256(text: string, encoding?: 'hex' | 'base64'): string;
+  static verify(text: string, expectedHash: string, encoding?: 'hex' | 'base64'): boolean;
+  static verifyNormalized(text: string, expectedHash: string, encoding?: 'hex' | 'base64'): boolean;
 }
 ```

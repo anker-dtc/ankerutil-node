@@ -1,5 +1,5 @@
-import { SensitiveData } from '../sensitive';
-import { HashUtil } from '../hash';
+import { Encryption } from '../sensitive';
+import { Hash } from '../hash';
 import { 
   EncryptedFieldOptions, 
   getEncryptedFields,
@@ -37,10 +37,10 @@ interface UpdateEvent<T> {
  * 支持普通字段和JSON路径加密
  */
 export class EncryptionSubscriber implements EntitySubscriberInterface {
-  private static encryptionService: SensitiveData;
+  private static encryptionService: Encryption;
   private logger: any;
 
-  constructor(encryptionService?: SensitiveData, logger?: any) {
+  constructor(encryptionService?: Encryption, logger?: any) {
     if (encryptionService) {
       EncryptionSubscriber.encryptionService = encryptionService;
     }
@@ -71,7 +71,7 @@ export class EncryptionSubscriber implements EntitySubscriberInterface {
     // 3. 非字符串类型转换为字符串后加密
     try {
       const stringValue = String(value);
-      entity[field] = EncryptionSubscriber.encryptionService.aes128Sha256EncryptSensitiveData(stringValue);
+              entity[field] = EncryptionSubscriber.encryptionService.encrypt(stringValue);
       this.logger.debug(`字段加密成功: ${field}`);
     } catch (error) {
       throw new FieldEncryptionError(
@@ -89,9 +89,9 @@ export class EncryptionSubscriber implements EntitySubscriberInterface {
    */
   private async generateHashField(entity: any, field: string, hashFieldName: string, encoding: string): Promise<void> {
     try {
-      // 直接传递原始值，让HashUtil内部处理所有情况（null、undefined、空字符串等）
-      const hashValue = HashUtil.sha256(entity[field], encoding as 'hex' | 'base64');
-      // 设置哈希字段，包括null值（保持与HashUtil.sha256完全一致）
+      // 直接传递原始值，让Hash内部处理所有情况（null、undefined、空字符串等）
+      const hashValue = Hash.normalizeSha256(entity[field], encoding as 'hex' | 'base64');
+      // 设置哈希字段，包括null值（保持与Hash.normalizeSha256完全一致）
       entity[hashFieldName] = hashValue;
       this.logger.debug(`为字段 ${field} 生成哈希字段 ${hashFieldName}: ${hashValue}`);
     } catch (hashError) {
@@ -121,7 +121,7 @@ export class EncryptionSubscriber implements EntitySubscriberInterface {
     // 3. 尝试解密非空值
     const originalValue = value;
     try {
-      const decryptedValue = EncryptionSubscriber.encryptionService.aes128Sha256DecryptSensitiveData(String(originalValue));
+      const decryptedValue = EncryptionSubscriber.encryptionService.decrypt(String(originalValue));
       
       // 解密成功，使用解密后的值
       entity[field] = decryptedValue;
@@ -180,10 +180,10 @@ export class EncryptionSubscriber implements EntitySubscriberInterface {
       if (remainingSegments.length === 0 && typeof value === 'string') {
         try {
           if (operation === 'encrypt') {
-            obj[segment.key] = EncryptionSubscriber.encryptionService.aes128Sha256EncryptSensitiveData(value);
+            obj[segment.key] = EncryptionSubscriber.encryptionService.encrypt(value);
           } else {
             // 解密时，支持明文和密文
-            const decryptedValue = EncryptionSubscriber.encryptionService.aes128Sha256DecryptSensitiveData(value);
+            const decryptedValue = EncryptionSubscriber.encryptionService.decrypt(value);
             // 解密成功，直接使用解密后的值（包括空字符串）
             obj[segment.key] = decryptedValue;
           }
