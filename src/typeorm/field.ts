@@ -1,6 +1,7 @@
 // 普通字段加密相关类型定义
 export interface EncryptedFieldOptions {
-  autoEncrypt?: boolean;
+  autoEncrypt?: boolean;  // 是否自动加密写入，默认true
+  autoDecrypt?: boolean;  // 是否自动解密读取，默认true
   [key: string]: any;
 }
 
@@ -42,7 +43,9 @@ export function createEncryptedFieldDecorator(options: EncryptedFieldOptions = {
     if (!target.constructor.__encryptedFields) {
       target.constructor.__encryptedFields = [];
     }
-    target.constructor.__encryptedFields.push({ field: propertyKey, options });
+    // 设置默认值：autoEncrypt和autoDecrypt默认为true
+    const finalOptions = { autoEncrypt: true, autoDecrypt: true, ...options };
+    target.constructor.__encryptedFields.push({ field: propertyKey, options: finalOptions });
   };
 }
 

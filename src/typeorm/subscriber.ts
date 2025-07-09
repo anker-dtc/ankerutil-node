@@ -97,6 +97,8 @@ export class EncryptionSubscriber implements EntitySubscriberInterface {
    * 解密普通字段
    */
   private async decryptField(entity: any, field: string, options: EncryptedFieldOptions): Promise<void> {
+    if (!options.autoDecrypt) return;
+    
     const value = entity[field];
     
     // 按照行业最佳实践处理空值
@@ -255,6 +257,8 @@ export class EncryptionSubscriber implements EntitySubscriberInterface {
    * 解密JSON字段
    */
   private async decryptJsonField(entity: any, field: string, options: EncryptedJsonFieldOptions): Promise<void> {
+    if (!options.autoDecrypt) return;
+    
     const value = entity[field];
     
     // 按照行业最佳实践处理空值
