@@ -62,16 +62,10 @@ export class EncryptionSubscriber implements EntitySubscriberInterface {
       return;
     }
     
-    // 2. 空字符串不加密，保持原值
-    if (value === '') {
-      this.logger.debug(`跳过空字符串加密，字段: ${field}`);
-      return;
-    }
-    
-    // 3. 非字符串类型转换为字符串后加密
+    // 2. 非字符串类型转换为字符串后加密（包括空字符串）
     try {
       const stringValue = String(value);
-              entity[field] = EncryptionSubscriber.encryptionService.encrypt(stringValue);
+      entity[field] = EncryptionSubscriber.encryptionService.encrypt(stringValue);
       this.logger.debug(`字段加密成功: ${field}`);
     } catch (error) {
       throw new FieldEncryptionError(
@@ -112,13 +106,7 @@ export class EncryptionSubscriber implements EntitySubscriberInterface {
       return;
     }
     
-    // 2. 空字符串不解密，保持原值
-    if (value === '') {
-      this.logger.debug(`跳过空字符串解密，字段: ${field}`);
-      return;
-    }
-    
-    // 3. 尝试解密非空值
+    // 2. 尝试解密非null值（包括空字符串）
     const originalValue = value;
     try {
       const decryptedValue = EncryptionSubscriber.encryptionService.decrypt(String(originalValue));
