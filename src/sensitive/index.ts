@@ -80,9 +80,8 @@ export class Encryption {
   }
 
   private aesCbcEncrypt(plaintext: string, key: string): string {
-    if (!plaintext) {
-      throw new Error('Plaintext cannot be empty');
-    }
+    // 移除空字符串检查，允许空字符串进入处理流程
+    // 空字符串和纯空格字符串都应该被正常加密
     
     try {
       const keyBytes = Buffer.from(key, 'hex');
@@ -103,9 +102,8 @@ export class Encryption {
   }
 
   private aesCbcDecrypt(ciphertext: string, key: string): string {
-    if (!ciphertext) {
-      throw new Error('Ciphertext cannot be empty');
-    }
+    // 移除空字符串检查，允许空字符串进入处理流程
+    // 空字符串和纯空格字符串都应该被正常解密
     
     try {
       const keyBytes = Buffer.from(key, 'hex');
@@ -139,10 +137,9 @@ export class Encryption {
     return crypto.randomBytes(16).toString('hex');
   }
 
-  encrypt(plaintext: string): string {
-    if (!plaintext) {
-      throw new Error('Plaintext cannot be empty');
-    }
+  encrypt(plaintext: string | null | undefined): string | null {
+    // 如果传入null或undefined，直接返回null
+    if (plaintext === null || plaintext === undefined) return null;
 
     if (!this.sensitiveRootKeyValue || !this.sensitiveRootKeyVersion) {
       throw new Error('Sensitive keys not initialized. Call init() first.');
@@ -161,10 +158,9 @@ export class Encryption {
     }
   }
 
-  decrypt(ciphertext: string): string {
-    if (!ciphertext) {
-      throw new Error('Ciphertext cannot be empty');
-    }
+  decrypt(ciphertext: string | null | undefined): string | null {
+    // 如果传入null或undefined，直接返回null
+    if (ciphertext === null || ciphertext === undefined) return null;
 
     try {
       const parts = ciphertext.split('^');
