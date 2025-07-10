@@ -4,6 +4,11 @@ Node.js 敏感数据加密工具库 - 提供AES加密算法、TypeORM字段装�
 
 ## 更新日志
 
+### v1.5.0
+- 🔧 **空值处理统一**：`encrypt`和`decrypt`方法现在支持`null`和`undefined`值，遇到时直接返回`null`
+- ✅ **空字符串处理**：允许空字符串和纯空格字符串正常进入加解密流程，不再拦截
+- 📝 **API类型更新**：`encrypt`和`decrypt`方法参数类型从`string`更新为`string | null | undefined`，返回类型从`string`更新为`string | null`
+
 ### v1.4.0
 - 🔄 **Hash重构**：`HashUtil`→`Hash`，将原来的`sha256`方法拆分为`sha256`（纯哈希）和`normalizeSha256`（标准化哈希）
 - 📝 **方法重命名**：`verifySha256`重命名为`verify`，新增`verifyNormalized`方法
@@ -33,6 +38,7 @@ Node.js 敏感数据加密工具库 - 提供AES加密算法、TypeORM字段装�
 - **自动加密解密**：基于TypeORM订阅器实现字段自动处理
 - **复杂JSON路径支持**：支持嵌套对象、数组、根数组等复杂场景
 - **哈希字段功能**：自动生成SHA256哈希字段用于数据完整性验证
+- **统一的空值处理策略**：null/undefined 返回 null，空字符串正常处理
 - **Node.js 18+ 兼容**
 
 ## 快速开始
@@ -129,13 +135,33 @@ TypeOrmModule.forRoot({
 
 ## API
 
+### 空值处理策略
+
+所有数据处理方法（`normalize`、`sha256`、`encrypt`、`decrypt`）都遵循统一的空值处理策略：
+
+- **null/undefined 值**：直接返回 `null`，不进入处理流程
+- **空字符串**：正常进入处理流程，不会被拦截
+- **纯空格字符串**：正常进入处理流程，不会被拦截
+
+```typescript
+// 示例
+Hash.sha256(null)           // 返回 null
+Hash.sha256(undefined)      // 返回 null  
+Hash.sha256("")            // 正常计算哈希
+Hash.sha256("   ")         // 正常计算哈希
+
+Encryption.encrypt(null)    // 返回 null
+Encryption.encrypt("")      // 正常加密
+Encryption.encrypt("   ")   // 正常加密
+```
+
 ### Encryption
 
 ```typescript
 class Encryption {
   init(cbcKey: string, rootKey: { [version: string]: string }): void;
-  encrypt(text: string): string;
-  decrypt(encryptedText: string): string;
+  encrypt(text: string | null | undefined): string | null;
+  decrypt(encryptedText: string | null | undefined): string | null;
 }
 ```
 
@@ -143,9 +169,10 @@ class Encryption {
 
 ```typescript
 class Hash {
-  static sha256(text: string, encoding?: 'hex' | 'base64'): string;
-  static normalizeSha256(text: string, encoding?: 'hex' | 'base64'): string;
-  static verify(text: string, expectedHash: string, encoding?: 'hex' | 'base64'): boolean;
-  static verifyNormalized(text: string, expectedHash: string, encoding?: 'hex' | 'base64'): boolean;
+  static sha256(text: string | null | undefined, encoding?: 'hex' | 'base64'): string | null;
+  static normalize(text: string | null | undefined): string | null;
+  static normalizeSha256(text: string | null | undefined, encoding?: 'hex' | 'base64'): string | null;
+  static verify(text: string | null | undefined, expectedHash: string, encoding?: 'hex' | 'base64'): boolean;
+  static verifyNormalized(text: string | null | undefined, expectedHash: string, encoding?: 'hex' | 'base64'): boolean;
 }
 ```
