@@ -1,6 +1,6 @@
 {
   "name": "ankerutil-node",
-  "version": "1.3.0",
+  "version": "1.5.0",
   "description": "Node.js 敏感数据加密工具库 - 提供AES加密算法、TypeORM字段装饰器和哈希字段功能",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

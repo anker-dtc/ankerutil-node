@@ -14,7 +14,7 @@ interface Constants {
   AES_BLOCK_SIZE: number;
 }
 
-export class SensitiveData {
+export class Encryption {
   private sensitiveDataKey: string | null;
   private sensitiveRootKey: RootKey;
   private sensitiveRootKeyVersion: string | null;
@@ -37,35 +37,35 @@ export class SensitiveData {
     this.sensitiveRootKeyValue = null;
   }
 
-  initSensitiveKey(cbcKey: string, rootKey: RootKey): void {
+  init(cbcKey: string, rootKey: RootKey): void {
     // 验证 cbcKey
     if (cbcKey.length !== this.CONSTANTS.SENSITIVE_DATA_KEY_LEN) {
-      throw new Error('InitSensitiveKey cbcKey len invalid');
+      throw new Error('Init cbcKey len invalid');
     }
 
     const keyBytes = Buffer.from(cbcKey, 'hex');
     if (keyBytes.length !== 2 * this.CONSTANTS.AES_BLOCK_SIZE) {
-      throw new Error('InitSensitiveKey cbcKey BlockSize error');
+      throw new Error('Init cbcKey BlockSize error');
     }
 
     this.sensitiveDataKey = cbcKey;
 
     // 验证 rootKey
     if (!rootKey || Object.keys(rootKey).length === 0) {
-      throw new Error('InitSensitiveKey rootKey not empty');
+      throw new Error('Init rootKey not empty');
     }
 
     for (const [version, key] of Object.entries(rootKey)) {
       if (version.length !== this.CONSTANTS.SENSITIVE_ROOT_KEY_VERSION_LEN) {
-        throw new Error('InitSensitiveKey rootKeyVersion len invalid');
+        throw new Error('Init rootKeyVersion len invalid');
       }
       if (key.length !== this.CONSTANTS.SENSITIVE_ROOT_KEY_LEN) {
-        throw new Error('InitSensitiveKey rootKey len invalid');
+        throw new Error('Init rootKey len invalid');
       }
 
       const keyBytes = Buffer.from(key, 'hex');
       if (keyBytes.length !== this.CONSTANTS.AES_BLOCK_SIZE) {
-        throw new Error('InitSensitiveKey rootKey BlockSize error');
+        throw new Error('Init rootKey BlockSize error');
       }
 
       this.sensitiveRootKey[version] = key;
@@ -80,9 +80,8 @@ export class SensitiveData {
   }
 
   private aesCbcEncrypt(plaintext: string, key: string): string {
-    if (!plaintext) {
-      throw new Error('Plaintext cannot be empty');
-    }
+    // 移除空字符串检查，允许空字符串进入处理流程
+    // 空字符串和纯空格字符串都应该被正常加密
     
     try {
       const keyBytes = Buffer.from(key, 'hex');
@@ -103,9 +102,8 @@ export class SensitiveData {
   }
 
   private aesCbcDecrypt(ciphertext: string, key: string): string {
-    if (!ciphertext) {
-      throw new Error('Ciphertext cannot be empty');
-    }
+    // 移除空字符串检查，允许空字符串进入处理流程
+    // 空字符串和纯空格字符串都应该被正常解密
     
     try {
       const keyBytes = Buffer.from(key, 'hex');
@@ -139,13 +137,12 @@ export class SensitiveData {
     return crypto.randomBytes(16).toString('hex');
   }
 
-  aes128Sha256EncryptSensitiveData(plaintext: string): string {
-    if (!plaintext) {
-      throw new Error('Plaintext cannot be empty');
-    }
+  encrypt(plaintext: string | null | undefined): string | null {
+    // 如果传入null或undefined，直接返回null
+    if (plaintext === null || plaintext === undefined) return null;
 
     if (!this.sensitiveRootKeyValue || !this.sensitiveRootKeyVersion) {
-      throw new Error('Sensitive keys not initialized. Call initSensitiveKey() first.');
+      throw new Error('Sensitive keys not initialized. Call init() first.');
     }
 
     try {
@@ -161,10 +158,9 @@ export class SensitiveData {
     }
   }
 
-  aes128Sha256DecryptSensitiveData(ciphertext: string): string {
-    if (!ciphertext) {
-      throw new Error('Ciphertext cannot be empty');
-    }
+  decrypt(ciphertext: string | null | undefined): string | null {
+    // 如果传入null或undefined，直接返回null
+    if (ciphertext === null || ciphertext === undefined) return null;
 
     try {
       const parts = ciphertext.split('^');
@@ -208,7 +204,7 @@ export class SensitiveData {
 
   private decryptSensitiveDataByDataKey(ciphertext: string): string {
     if (!this.sensitiveDataKey) {
-      throw new Error('Sensitive data key not initialized. Call initSensitiveKey() first.');
+      throw new Error('Sensitive data key not initialized. Call init() first.');
     }
 
     try {
@@ -230,4 +226,4 @@ export class SensitiveData {
 }
 
 // 兼容性导出
-export { SensitiveData as EncryptionUtil };
+export { Encryption as EncryptionUtil };

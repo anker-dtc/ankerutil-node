@@ -1,6 +1,7 @@
 // JSON字段加密相关类型定义
 export interface EncryptedJsonFieldOptions {
-  autoEncrypt?: boolean;
+  autoEncrypt?: boolean;  // 是否自动加密写入，默认true
+  autoDecrypt?: boolean;  // 是否自动解密读取，默认true
   paths: string[];
   [key: string]: any;
 }
@@ -117,7 +118,9 @@ export function createEncryptedJsonFieldDecorator(options: EncryptedJsonFieldOpt
     if (!target.constructor.__encryptedJsonFields) {
       target.constructor.__encryptedJsonFields = [];
     }
-    target.constructor.__encryptedJsonFields.push({ field: propertyKey, options });
+    // 设置默认值：autoEncrypt和autoDecrypt默认为true
+    const finalOptions = { autoEncrypt: true, autoDecrypt: true, ...options };
+    target.constructor.__encryptedJsonFields.push({ field: propertyKey, options: finalOptions });
   };
 }
 
