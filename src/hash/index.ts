@@ -20,7 +20,7 @@ export class Hash {
         .update(String(text), 'utf8')
         .digest(encoding);
     } catch (error) {
-      throw new Error(`SHA256哈希计算失败: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(`SHA256 hash calculation failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
