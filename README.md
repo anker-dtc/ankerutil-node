@@ -4,47 +4,19 @@ Node.js 敏感数据加密工具库 - 提供AES加密算法、TypeORM字段装�
 
 ## 更新日志
 
-### v1.5.1
+### v1.6.0
+- ❌ **移除HashField装饰器**：哈希功能已集成到@EncryptedField/@EncryptedJsonField装饰器中
 - 🛡️ **重复加密检测**：新增密文检测功能，避免对已经是密文的数据进行重复加密
+- 🔐 **集成哈希生成**：加密装饰器支持自动生成哈希字段，确保哈希在加密前生成
 - ⚡ **性能优化**：减少不必要的加密操作，提高系统性能
-- 📝 **日志优化**：添加详细的调试日志，便于监控和问题排查
-- 🔒 **数据安全**：防止重复加密导致的数据损坏
-
-### v1.5.0
-- 🔧 **空值处理统一**：`encrypt`和`decrypt`方法现在支持`null`和`undefined`值，遇到时直接返回`null`
-- ✅ **空字符串处理**：允许空字符串和纯空格字符串正常进入加解密流程，不再拦截
-- 📝 **API类型更新**：`encrypt`和`decrypt`方法参数类型从`string`更新为`string | null | undefined`，返回类型从`string`更新为`string | null`
-
-### v1.4.0
-- 🔄 **Hash重构**：`HashUtil`→`Hash`，将原来的`sha256`方法拆分为`sha256`（纯哈希）和`normalizeSha256`（标准化哈希）
-- 📝 **方法重命名**：`verifySha256`重命名为`verify`，新增`verifyNormalized`方法
-- 🔧 **API简化**：`SensitiveData`→`Encryption`，`initSensitiveKey`→`init`，`aes128Sha256EncryptSensitiveData`→`encrypt`，`aes128Sha256DecryptSensitiveData`→`decrypt`
-- ⚠️ **破坏性变更**：原来使用`HashUtil.sha256`的地方需要改为`Hash.normalizeSha256`以保持相同功能
-
-### v1.3.0
-- 🔒 **安全性改进**：核心加密方法失败时抛出异常而非返回空字符串，避免数据丢失风险
-- 🛡️ **异常处理优化**：TypeORM订阅器自动捕获解密异常并保持原值
-- ⚡ **空值处理**：默认跳过null、undefined、空字符串的加解密操作，符合行业最佳实践
-
-### v1.2.0
-- ✨ 新增JSON字段加密功能，支持复杂嵌套对象和数组
-- 🔧 优化TypeORM集成，支持自动加密解密
-
-### v1.1.0
-- 🎯 新增哈希字段功能
-- 📦 完善TypeScript类型定义
-
-### v1.0.0
-- 🚀 初始版本发布
 
 ## 核心功能
 
 - **AES-128-SHA256 加密算法**：高性能的敏感数据加密解密
-- **TypeORM 字段装饰器**：`@EncryptedField`、`@EncryptedJsonField`、`@HashField`
+- **TypeORM 字段装饰器**：`@EncryptedField`、`@EncryptedJsonField`
 - **自动加密解密**：基于TypeORM订阅器实现字段自动处理
-- **复杂JSON路径支持**：支持嵌套对象、数组、根数组等复杂场景
+- **复杂JSON路径支持**：支持嵌套对象、数组等复杂场景
 - **哈希字段功能**：自动生成SHA256哈希字段用于数据完整性验证
-- **统一的空值处理策略**：null/undefined 返回 null，空字符串正常处理
 - **重复加密检测**：智能识别密文格式，避免重复加密
 - **Node.js 18+ 兼容**
 
@@ -59,7 +31,7 @@ npm install ankerutil-node
 ### 基础使用
 
 ```typescript
-import { Encryption, Hash, EncryptedField, HashField } from 'ankerutil-node';
+import { Encryption, Hash, EncryptedField } from 'ankerutil-node';
 
 // 敏感数据加密
 const encryption = new Encryption();
@@ -80,12 +52,14 @@ export class User {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @EncryptedField()
-  @HashField()
+  @EncryptedField({
+    hashField: 'email_hash',     // 指定哈希字段名，如果不指定则不生成哈希
+    hashEncoding: 'hex'          // 哈希编码格式，默认hex
+  })
   email: string;
 
   @Column({ type: 'varchar', nullable: true })
-  email_sha256: string;
+  email_hash: string;            // 对应的哈希字段
 }
 ```
 
@@ -99,13 +73,18 @@ export class UserEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @EncryptedField()
+  @EncryptedField({
+    hashField: 'email_hash',     // 指定哈希字段名，如果不指定则不生成哈希
+    hashEncoding: 'hex'          // 哈希编码格式，默认hex
+  })
   email: string;
 
   // JSON字段加密 - 嵌套对象
   @EncryptedJsonField({
     autoEncrypt: true,
-    paths: ['name', 'idCard', 'contactInfo.email', 'contactInfo.phone']
+    paths: ['name', 'idCard', 'contactInfo.email', 'contactInfo.phone'],
+    hashField: 'personal_info_hash',  // 指定哈希字段名
+    hashEncoding: 'base64'            // 哈希编码格式
   })
   @Column({ type: 'jsonb', nullable: true })
   personalInfo: {
@@ -120,7 +99,9 @@ export class UserEntity {
   // JSON字段加密 - 数组
   @EncryptedJsonField({
     autoEncrypt: true,
-    paths: ['[].street', '[].city', '[].contacts[].email']
+    paths: ['[].street', '[].city', '[].contacts[].email'],
+    hashField: 'addresses_hash',      // 指定哈希字段名
+    hashEncoding: 'hex'               // 哈希编码格式
   })
   @Column({ type: 'jsonb', nullable: true })
   addresses: Array<{
@@ -142,26 +123,6 @@ TypeOrmModule.forRoot({
 
 ## API
 
-### 空值处理策略
-
-所有数据处理方法（`normalize`、`sha256`、`encrypt`、`decrypt`）都遵循统一的空值处理策略：
-
-- **null/undefined 值**：直接返回 `null`，不进入处理流程
-- **空字符串**：正常进入处理流程，不会被拦截
-- **纯空格字符串**：正常进入处理流程，不会被拦截
-
-```typescript
-// 示例
-Hash.sha256(null)           // 返回 null
-Hash.sha256(undefined)      // 返回 null  
-Hash.sha256("")            // 正常计算哈希
-Hash.sha256("   ")         // 正常计算哈希
-
-Encryption.encrypt(null)    // 返回 null
-Encryption.encrypt("")      // 正常加密
-Encryption.encrypt("   ")   // 正常加密
-```
-
 ### Encryption
 
 ```typescript
@@ -181,5 +142,28 @@ class Hash {
   static normalizeSha256(text: string | null | undefined, encoding?: 'hex' | 'base64'): string | null;
   static verify(text: string | null | undefined, expectedHash: string, encoding?: 'hex' | 'base64'): boolean;
   static verifyNormalized(text: string | null | undefined, expectedHash: string, encoding?: 'hex' | 'base64'): boolean;
+}
+```
+
+### 装饰器配置
+
+#### EncryptedFieldOptions
+```typescript
+interface EncryptedFieldOptions {
+  autoEncrypt?: boolean;  // 是否自动加密写入，默认true
+  autoDecrypt?: boolean;  // 是否自动解密读取，默认true
+  hashField?: string;     // 哈希字段名称，如果指定则会在加密前生成哈希
+  hashEncoding?: 'hex' | 'base64'; // 哈希编码格式，默认hex
+}
+```
+
+#### EncryptedJsonFieldOptions
+```typescript
+interface EncryptedJsonFieldOptions {
+  autoEncrypt?: boolean;  // 是否自动加密写入，默认true
+  autoDecrypt?: boolean;  // 是否自动解密读取，默认true
+  paths: string[];        // 需要加密的JSON路径
+  hashField?: string;     // 哈希字段名称，如果指定则会在加密前生成哈希
+  hashEncoding?: 'hex' | 'base64'; // 哈希编码格式，默认hex
 }
 ```

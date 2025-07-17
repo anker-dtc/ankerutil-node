@@ -2,6 +2,8 @@
 export interface EncryptedFieldOptions {
   autoEncrypt?: boolean;  // 是否自动加密写入，默认true
   autoDecrypt?: boolean;  // 是否自动解密读取，默认true
+  hashField?: string;     // 哈希字段名称，如果指定则会在加密前生成哈希
+  hashEncoding?: 'hex' | 'base64'; // 哈希编码格式，默认hex
   [key: string]: any;
 }
 
