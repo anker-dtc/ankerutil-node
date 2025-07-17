@@ -12,9 +12,7 @@ import {
   getEncryptedJsonFields,
   EncryptionError as JsonEncryptionError
 } from './json';
-import {
-  getHashFields
-} from './hash';
+
 
 // TypeORM接口定义
 interface EntitySubscriberInterface {
@@ -96,6 +94,16 @@ export class EncryptionSubscriber implements EntitySubscriberInterface {
     if (this.isAlreadyEncrypted(stringValue)) {
       // Skip already encrypted field
       return;
+    }
+    
+    // 在加密前生成哈希（如果配置了哈希字段）
+    if (options.hashField) {
+      try {
+        const hashValue = Hash.normalizeSha256(stringValue, options.hashEncoding || 'hex');
+        entity[options.hashField] = hashValue;
+      } catch (hashError) {
+        this.logger.warn(`Hash field generation failed: ${field} -> ${options.hashField}, error: ${hashError instanceof Error ? hashError.message : String(hashError)}`);
+      }
     }
     
     try {
@@ -256,6 +264,18 @@ export class EncryptionSubscriber implements EntitySubscriberInterface {
       return;
     }
     
+    // 在加密前生成哈希（如果配置了哈希字段）
+    if (options.hashField) {
+      try {
+        // 对于JSON字段，我们基于整个JSON对象生成哈希
+        const jsonString = JSON.stringify(value);
+        const hashValue = Hash.normalizeSha256(jsonString, options.hashEncoding || 'hex');
+        entity[options.hashField] = hashValue;
+      } catch (hashError) {
+        this.logger.warn(`Hash field generation failed: ${field} -> ${options.hashField}, error: ${hashError instanceof Error ? hashError.message : String(hashError)}`);
+      }
+    }
+    
     try {
       await this.processNestedFields(value, options.paths, 'encrypt');
       // JSON field encrypted successfully
@@ -350,15 +370,6 @@ export class EncryptionSubscriber implements EntitySubscriberInterface {
         this.handleEncryptionError(error, 'encrypt');
       }
     }
-
-    const hashFields = getHashFields(entity.constructor);
-    for (const { field, hashFieldName, encoding } of hashFields) {
-      try {
-        await this.generateHashField(entity, field, hashFieldName, encoding);
-      } catch (error) {
-        this.logger.warn(`Hash field generation failed: ${field}, error: ${error instanceof Error ? error.message : String(error)}`);
-      }
-    }
   }
 
   /**
@@ -414,15 +425,6 @@ export class EncryptionSubscriber implements EntitySubscriberInterface {
         await this.encryptJsonField(entity, field, options);
       } catch (error) {
         this.handleEncryptionError(error, 'encrypt');
-      }
-    }
-
-    const hashFields = getHashFields(entity.constructor);
-    for (const { field, hashFieldName, encoding } of hashFields) {
-      try {
-        await this.generateHashField(entity, field, hashFieldName, encoding);
-      } catch (error) {
-        this.logger.warn(`Hash field generation failed: ${field}, error: ${error instanceof Error ? error.message : String(error)}`);
       }
     }
   }
