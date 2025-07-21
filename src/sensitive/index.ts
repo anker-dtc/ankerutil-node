@@ -80,21 +80,15 @@ export class Encryption {
   }
 
   private aesCbcEncrypt(plaintext: string, key: string): string {
-    // 移除空字符串检查，允许空字符串进入处理流程
-    // 空字符串和纯空格字符串都应该被正常加密
-    
     try {
-      const keyBytes = Buffer.from(key, 'hex');
+      const keyBytes = Buffer.from(key, 'hex').subarray(0, 16); // 只取前16字节
       const iv = crypto.randomBytes(this.CONSTANTS.AES_BLOCK_SIZE);
-      
       const cipher = crypto.createCipheriv('aes-128-cbc', keyBytes, iv);
-      cipher.setAutoPadding(true);  // 使用 PKCS7 填充
-
+      cipher.setAutoPadding(true);
       const encrypted = Buffer.concat([
         cipher.update(Buffer.from(plaintext, 'utf8')),
         cipher.final()
       ]);
-      
       return Buffer.concat([iv, encrypted]).toString('base64');
     } catch (error) {
       throw new Error(`AES CBC Encryption failed: ${error instanceof Error ? error.message : String(error)}`);
@@ -102,24 +96,17 @@ export class Encryption {
   }
 
   private aesCbcDecrypt(ciphertext: string, key: string): string {
-    // 移除空字符串检查，允许空字符串进入处理流程
-    // 空字符串和纯空格字符串都应该被正常解密
-    
     try {
-      const keyBytes = Buffer.from(key, 'hex');
+      const keyBytes = Buffer.from(key, 'hex').subarray(0, 16); // 只取前16字节
       const data = Buffer.from(ciphertext, 'base64');
-      
       const iv = data.subarray(0, this.CONSTANTS.AES_BLOCK_SIZE);
       const encryptedData = data.subarray(this.CONSTANTS.AES_BLOCK_SIZE);
-      
       const decipher = crypto.createDecipheriv('aes-128-cbc', keyBytes, iv);
-      decipher.setAutoPadding(true);  // 使用 PKCS7 填充
-      
+      decipher.setAutoPadding(true);
       const decrypted = Buffer.concat([
         decipher.update(encryptedData),
         decipher.final()
       ]);
-      
       return decrypted.toString('utf8');
     } catch (error) {
       throw new Error(`AES CBC Decryption failed: ${error instanceof Error ? error.message : String(error)}`);
@@ -178,17 +165,36 @@ export class Encryption {
           throw new Error(`Root key version '${rootKeyVersion}' not found`);
         }
 
-        const dataKey = this.aesCbcDecrypt(envelopeKey, rootKey);
-        if (!dataKey) {
+        let dataKey: string;
+        try {
+          dataKey = this.aesCbcDecrypt(envelopeKey, rootKey);
+        } catch (e) {
+          console.error('[解密异常] envelopeKey解密失败:', {
+            envelopeKey,
+            rootKey,
+            error: e instanceof Error ? e.stack : e
+          });
           throw new Error('Failed to decrypt envelope key');
         }
 
-        const plaintext = this.aesCbcDecrypt(secretData, dataKey);
-        if (!plaintext) {
+        let plaintext: string;
+        try {
+          plaintext = this.aesCbcDecrypt(secretData, dataKey);
+        } catch (e) {
+          console.error('[解密异常] secretData解密失败:', {
+            secretData,
+            dataKey,
+            error: e instanceof Error ? e.stack : e
+          });
           throw new Error('Failed to decrypt secret data');
         }
 
         if (this.sha256(plaintext) !== digest) {
+          console.error('[解密异常] sha256校验失败:', {
+            plaintext,
+            digest,
+            sha256: this.sha256(plaintext)
+          });
           throw new Error('Data integrity check failed: SHA256 digest mismatch');
         }
 
@@ -198,6 +204,7 @@ export class Encryption {
         return this.decryptSensitiveDataByDataKey(ciphertext);
       }
     } catch (error) {
+      console.error('[解密异常] decrypt主流程异常:', error instanceof Error ? error.stack : error);
       throw new Error(`Decryption failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
