@@ -169,11 +169,6 @@ export class Encryption {
         try {
           dataKey = this.aesCbcDecrypt(envelopeKey, rootKey);
         } catch (e) {
-          console.error('[解密异常] envelopeKey解密失败:', {
-            envelopeKey,
-            rootKey,
-            error: e instanceof Error ? e.stack : e
-          });
           throw new Error('Failed to decrypt envelope key');
         }
 
@@ -181,20 +176,10 @@ export class Encryption {
         try {
           plaintext = this.aesCbcDecrypt(secretData, dataKey);
         } catch (e) {
-          console.error('[解密异常] secretData解密失败:', {
-            secretData,
-            dataKey,
-            error: e instanceof Error ? e.stack : e
-          });
           throw new Error('Failed to decrypt secret data');
         }
 
         if (this.sha256(plaintext) !== digest) {
-          console.error('[解密异常] sha256校验失败:', {
-            plaintext,
-            digest,
-            sha256: this.sha256(plaintext)
-          });
           throw new Error('Data integrity check failed: SHA256 digest mismatch');
         }
 
@@ -204,7 +189,6 @@ export class Encryption {
         return this.decryptSensitiveDataByDataKey(ciphertext);
       }
     } catch (error) {
-      console.error('[解密异常] decrypt主流程异常:', error instanceof Error ? error.stack : error);
       throw new Error(`Decryption failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
