@@ -85,51 +85,33 @@ export class EncryptionSubscriber implements EntitySubscriberInterface {
     if (!options.autoEncrypt) return;
     
     const value = entity[field];
-    
-    if (value == null) {
-      return;
-    }
-    
+    // 哈希跳过 null 和 undefined
+    if (value === null || value === undefined) return;
     const stringValue = String(value);
-    if (this.isAlreadyEncrypted(stringValue)) {
-      // Skip already encrypted field
-      return;
-    }
-    
-    // 在加密前生成哈希（如果配置了哈希字段）
+    // 已加密的直接跳过
+    if (this.isAlreadyEncrypted(stringValue)) return;
     if (options.hashField) {
       try {
         const hashValue = Hash.normalizeSha256(stringValue, options.hashEncoding || 'hex');
         entity[options.hashField] = hashValue;
       } catch (hashError) {
-        this.logger.warn(`Hash field generation failed: ${field} -> ${options.hashField}, error: ${hashError instanceof Error ? hashError.message : String(hashError)}`);
+        this.logger.warn(
+          `Hash field generation failed: [field=${field}, hashField=${options.hashField}], errorType: ${hashError instanceof Error ? hashError.name : typeof hashError}`
+        );
       }
     }
-    
+    // 加密跳过空字符串
+    if (value === '') return;
     try {
       entity[field] = EncryptionSubscriber.encryptionService.encrypt(stringValue);
-      // Field encrypted successfully
     } catch (error) {
       throw new FieldEncryptionError(
-        `Failed to encrypt field: ${error instanceof Error ? error.message : String(error)}`, 
-        field, 
-        'encrypt', 
-        undefined, 
+        `Failed to encrypt field: ${error instanceof Error ? error.message : String(error)}`,
+        field,
+        'encrypt',
+        undefined,
         error instanceof Error ? error : undefined
       );
-    }
-  }
-
-  /**
-   * 生成哈希字段
-   */
-  private async generateHashField(entity: any, field: string, hashFieldName: string, encoding: string): Promise<void> {
-    try {
-      const hashValue = Hash.normalizeSha256(entity[field], encoding as 'hex' | 'base64');
-      entity[hashFieldName] = hashValue;
-      // Hash field generated successfully
-    } catch (hashError) {
-      this.logger.warn(`Hash field generation failed: ${field}, error: ${hashError instanceof Error ? hashError.message : String(hashError)}`);
     }
   }
 
@@ -140,16 +122,12 @@ export class EncryptionSubscriber implements EntitySubscriberInterface {
     if (!options.autoDecrypt) return;
     
     const value = entity[field];
-    
-    if (value == null) {
-      return;
-    }
-    
+    // 解密跳过 null、undefined、空字符串
+    if (value === null || value === undefined || value === '') return;
     const originalValue = value;
     try {
       const decryptedValue = EncryptionSubscriber.encryptionService.decrypt(String(originalValue));
       entity[field] = decryptedValue;
-      // Field decrypted successfully
     } catch (error) {
       entity[field] = originalValue;
       this.logger.warn(`Decryption failed, keeping original value: ${field}, error: ${error instanceof Error ? error.message : String(error)}`);
@@ -200,12 +178,17 @@ export class EncryptionSubscriber implements EntitySubscriberInterface {
 
       // 如果是叶节点且值是字符串，执行加密/解密
       if (remainingSegments.length === 0 && typeof value === 'string') {
+        // 加解密跳过 null、undefined、空字符串
+        if (value === null || value === undefined || value === '') {
+          return;
+        }
+        // 已加密判断放到最后
+        if (operation === 'encrypt' && this.isAlreadyEncrypted(value)) {
+          // Skip already encrypted JSON path
+          return;
+        }
         try {
           if (operation === 'encrypt') {
-            if (this.isAlreadyEncrypted(value)) {
-              // Skip already encrypted JSON path
-              return;
-            }
             obj[segment.key] = EncryptionSubscriber.encryptionService.encrypt(value);
           } else {
             const decryptedValue = EncryptionSubscriber.encryptionService.decrypt(value);
