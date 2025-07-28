@@ -260,7 +260,11 @@ export class EncryptionSubscriber implements EntitySubscriberInterface {
     }
     
     try {
-      await this.processNestedFields(value, options.paths, 'encrypt');
+      // 深拷贝对象以避免修改原始对象
+      const clonedValue = JSON.parse(JSON.stringify(value));
+      await this.processNestedFields(clonedValue, options.paths, 'encrypt');
+      // 将加密后的对象赋值回实体字段
+      entity[field] = clonedValue;
       // JSON field encrypted successfully
     } catch (error) {
       if (error instanceof JsonEncryptionError) throw error;
@@ -291,7 +295,11 @@ export class EncryptionSubscriber implements EntitySubscriberInterface {
     }
     
     try {
-      await this.processNestedFields(value, options.paths, 'decrypt');
+      // 深拷贝对象以避免修改原始对象
+      const clonedValue = JSON.parse(JSON.stringify(value));
+      await this.processNestedFields(clonedValue, options.paths, 'decrypt');
+      // 将解密后的对象赋值回实体字段
+      entity[field] = clonedValue;
       // JSON field decrypted successfully
     } catch (error) {
       if (error instanceof JsonEncryptionError) throw error;
