@@ -106,25 +106,41 @@ export class SecretManager {
    */
   async processSecretConfig(content: string): Promise<string> {
     try {
+      console.log('[SecretManager] 开始处理敏感配置');
+      console.log('[SecretManager] 配置内容长度:', content.length);
+      console.log('[SecretManager] 配置内容预览:', content.substring(0, 200) + '...');
+      
       // 解析配置以检查是否包含 SecretManage 配置
+      console.log('[SecretManager] 解析配置内容...');
       const secretConfig = this.parseConfigContent(content);
+      console.log('[SecretManager] 解析结果:', JSON.stringify(secretConfig, null, 2));
       
       // 如果没有找到有效的 SecretManage 配置，返回原始内容
       if (!this.isValidSecretConfig(secretConfig)) {
-        console.log('SecretManage 配置不完整，返回原始内容');
+        console.log('[SecretManager] SecretManage 配置不完整，返回原始内容');
+        console.log('[SecretManager] 当前 this.config:', JSON.stringify(this.config, null, 2));
         return content;
       }
 
       // 更新当前配置
+      console.log('[SecretManager] 更新配置前 this.config:', JSON.stringify(this.config, null, 2));
       this.config = secretConfig;
+      console.log('[SecretManager] 更新配置后 this.config:', JSON.stringify(this.config, null, 2));
 
       // 调用敏感配置管理 API
+      console.log('[SecretManager] 调用敏感配置管理 API...');
       const decryptedContent = await this.callSecretManageAPI(content);
       
-      console.log('敏感配置处理成功');
+      console.log('[SecretManager] 敏感配置处理成功');
       return decryptedContent;
 
     } catch (error) {
+      console.error('[SecretManager] 处理敏感配置时发生错误:');
+      console.error('[SecretManager] 错误类型:', error instanceof Error ? error.constructor.name : typeof error);
+      console.error('[SecretManager] 错误信息:', error instanceof Error ? error.message : String(error));
+      console.error('[SecretManager] 错误堆栈:', error instanceof Error ? error.stack : 'No stack trace');
+      console.error('[SecretManager] 当前 this.config:', JSON.stringify(this.config, null, 2));
+      
       throw new SecretManageError(
         `处理敏感配置失败: ${error instanceof Error ? error.message : String(error)}`,
         'process_secret_config',
@@ -271,10 +287,26 @@ export class SecretManager {
    * @returns 解密后的配置内容
    */
   private async callSecretManageAPI(content: string): Promise<string> {
+    console.log('[SecretManager] 调用 API 前的配置检查:');
+    console.log('[SecretManager] this.config.Name:', this.config.Name);
+    console.log('[SecretManager] this.config.Key:', this.config.Key ? `${this.config.Key.substring(0, 8)}...` : 'undefined');
+    console.log('[SecretManager] this.config.Domain:', this.config.Domain);
+    
     const timestamp = Math.floor(Date.now() / 1000);
+    console.log('[SecretManager] timestamp:', timestamp);
     
     // 生成签名
     const message = `SecretManageAnker+${timestamp}+${this.config.Name}+${this.config.Key}`;
+    console.log('[SecretManager] 签名消息:', `SecretManageAnker+${timestamp}+${this.config.Name}+${this.config.Key ? this.config.Key.substring(0, 8) + '...' : 'undefined'}`);
+    
+    try {
+      const signature = this.generateSignature(message, this.config.Key);
+      console.log('[SecretManager] 签名生成成功:', signature.substring(0, 8) + '...');
+    } catch (signatureError) {
+      console.error('[SecretManager] 签名生成失败:', signatureError);
+      throw signatureError;
+    }
+    
     const signature = this.generateSignature(message, this.config.Key);
 
     // 构造请求体
