@@ -20,3 +20,6 @@ export * from "./typeorm/subscriber";
 
 // 导出哈希工具
 export * from "./hash";
+
+// 导出Nacos配置读取模块
+export * from "./nacos";

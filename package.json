@@ -1,7 +1,7 @@
 {
   "name": "ankerutil-node",
-  "version": "1.6.0",
-  "description": "Node.js 敏感数据加密工具库 - 提供AES加密算法、TypeORM字段装饰器和哈希字段功能",
+  "version": "1.7.0",
+  "description": "Node.js 敏感数据加密工具库 - 提供AES加密算法、TypeORM字段装饰器、哈希字段功能和Nacos配置读取",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -16,7 +16,9 @@
     "nodejs",
     "typescript",
     "hash",
-    "sha256"
+    "sha256",
+    "nacos",
+    "config"
   ],
   "author": "",
   "license": "MIT",
@@ -28,10 +30,14 @@
     "node": ">=18.0.0"
   },
   "peerDependencies": {
-    "typeorm": ">=0.2.0"
+    "typeorm": ">=0.2.0",
+    "nacos": ">=2.0.0"
   },
   "peerDependenciesMeta": {
     "typeorm": {
+      "optional": true
+    },
+    "nacos": {
       "optional": true
     }
   },

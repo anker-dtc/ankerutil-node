@@ -1,23 +1,20 @@
 # ankerutil-node
 
-Node.js 敏感数据加密工具库 - 提供AES加密算法、TypeORM字段装饰器和哈希字段功能
+Node.js 敏感数据加密工具库 - 提供AES加密、TypeORM装饰器、哈希功能和Nacos配置读取
 
-## 更新日志
+## 版本 v1.7.0
 
-### v1.6.0
-- ❌ **移除HashField装饰器**：哈希功能已集成到@EncryptedField/@EncryptedJsonField装饰器中
-- 🛡️ **重复加密检测**：新增密文检测功能，避免对已经是密文的数据进行重复加密
-- 🔐 **集成哈希生成**：加密装饰器支持自动生成哈希字段，确保哈希在加密前生成
-- ⚡ **性能优化**：减少不必要的加密操作，提高系统性能
+✨ **新增 Nacos 配置管理**
+- 支持从 Nacos 配置中心读取配置
+- 支持敏感配置 `{{xxx}}` 变量解密
+- 提供 Express.js/NestJS 集成示例
 
-## 核心功能
+## 功能特性
 
-- **AES-128-SHA256 加密算法**：高性能的敏感数据加密解密
-- **TypeORM 字段装饰器**：`@EncryptedField`、`@EncryptedJsonField`
-- **自动加密解密**：基于TypeORM订阅器实现字段自动处理
-- **复杂JSON路径支持**：支持嵌套对象、数组等复杂场景
-- **哈希字段功能**：自动生成SHA256哈希字段用于数据完整性验证
-- **重复加密检测**：智能识别密文格式，避免重复加密
+- **AES-128 加密**：高性能敏感数据加密解密
+- **TypeORM 装饰器**：`@EncryptedField`、`@EncryptedJsonField` 自动加密字段
+- **哈希功能**：SHA256 哈希计算和验证
+- **Nacos 配置**：支持配置读取、监听和敏感配置解密
 - **Node.js 18+ 兼容**
 
 ## 快速开始
@@ -26,41 +23,24 @@ Node.js 敏感数据加密工具库 - 提供AES加密算法、TypeORM字段装�
 
 ```bash
 npm install ankerutil-node
+# 使用Nacos功能需要额外安装
+npm install nacos
 ```
 
-### 基础使用
+### 基础加密
 
 ```typescript
-import { Encryption, Hash, EncryptedField } from 'ankerutil-node';
+import { Encryption, Hash } from 'ankerutil-node';
 
-// 敏感数据加密
+// AES 加密
 const encryption = new Encryption();
-const cbcKey = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-const rootKey = { "0001": "0123456789abcdef0123456789abcdef" };
 encryption.init(cbcKey, rootKey);
-
 const encrypted = encryption.encrypt("敏感数据");
 const decrypted = encryption.decrypt(encrypted);
 
-// 哈希工具
-const hash = Hash.normalizeSha256("Hello, World!");
-const isValid = Hash.verifyNormalized("Hello, World!", hash);
-
-// TypeORM实体装饰器
-@Entity('users')
-export class User {
-  @PrimaryGeneratedColumn()
-  id: number;
-
-  @EncryptedField({
-    hashField: 'email_hash',     // 指定哈希字段名，如果不指定则不生成哈希
-    hashEncoding: 'hex'          // 哈希编码格式，默认hex
-  })
-  email: string;
-
-  @Column({ type: 'varchar', nullable: true })
-  email_hash: string;            // 对应的哈希字段
-}
+// SHA256 哈希
+const hash = Hash.normalizeSha256("Hello World");
+const isValid = Hash.verifyNormalized("Hello World", hash);
 ```
 
 ### TypeORM 集成
@@ -69,67 +49,160 @@ export class User {
 import { EncryptedField, EncryptedJsonField, EncryptionSubscriber } from 'ankerutil-node';
 
 @Entity('users')
-export class UserEntity {
-  @PrimaryGeneratedColumn()
-  id: number;
-
-  @EncryptedField({
-    hashField: 'email_hash',     // 指定哈希字段名，如果不指定则不生成哈希
-    hashEncoding: 'hex'          // 哈希编码格式，默认hex
-  })
+export class User {
+  @EncryptedField({ hashField: 'email_hash' })
   email: string;
 
-  // JSON字段加密 - 嵌套对象
-  @EncryptedJsonField({
-    autoEncrypt: true,
-    paths: ['name', 'idCard', 'contactInfo.email', 'contactInfo.phone'],
-    hashField: 'personal_info_hash',  // 指定哈希字段名
-    hashEncoding: 'base64'            // 哈希编码格式
+  @EncryptedJsonField({ 
+    paths: ['password', 'profile.phone'],
+    hashField: 'data_hash'
   })
-  @Column({ type: 'jsonb', nullable: true })
-  personalInfo: {
-    name: string;
-    idCard: string;
-    contactInfo: {
-      email: string;
-      phone: string;
-    };
-  };
-
-  // JSON字段加密 - 数组
-  @EncryptedJsonField({
-    autoEncrypt: true,
-    paths: ['[].street', '[].city', '[].contacts[].email'],
-    hashField: 'addresses_hash',      // 指定哈希字段名
-    hashEncoding: 'hex'               // 哈希编码格式
-  })
-  @Column({ type: 'jsonb', nullable: true })
-  addresses: Array<{
-    street: string;
-    city: string;
-    contacts: Array<{
-      email: string;
-    }>;
-  }>;
+  @Column({ type: 'jsonb' })
+  userData: object;
 }
 
 // 注册订阅器
-const encryption = new Encryption();
-encryption.init(cbcKey, rootKey);
 TypeOrmModule.forRoot({
-  subscribers: [new EncryptionSubscriber(encryption, logger)]
+  subscribers: [new EncryptionSubscriber(encryption)]
 });
 ```
 
-## API
+### Nacos 配置读取
+
+#### 基础用法
+
+```typescript
+import { NacosConfig } from 'ankerutil-node';
+
+const nacosConfig = new NacosConfig({
+  serverAddr: '127.0.0.1:8848',
+  namespace: 'production'
+});
+
+await nacosConfig.init();
+const config = await nacosConfig.getConfig('app.properties');
+const jsonConfig = await nacosConfig.getJsonConfig('database.json');
+
+// 监听配置变更
+await nacosConfig.subscribe({
+  dataId: 'app.properties',
+  onChanged: (content) => console.log('配置更新:', content)
+});
+```
+
+#### 敏感配置解密
+
+```typescript
+import { EnhancedNacosConfig } from 'ankerutil-node';
+
+// 环境变量配置
+process.env.SECRET_MANAGE_NAME = 'DTC';
+process.env.SECRET_MANAGE_KEY = 'your-secret-key';
+process.env.SECRET_MANAGE_DOMAIN = 'https://your-secret-service.com';
+
+const enhancedClient = new EnhancedNacosConfig({
+  serverAddr: '127.0.0.1:8848',
+  namespace: 'production',
+  secretManager: {
+    Name: process.env.SECRET_MANAGE_NAME!,
+    Key: process.env.SECRET_MANAGE_KEY!,
+    Domain: process.env.SECRET_MANAGE_DOMAIN!
+  }
+});
+
+await enhancedClient.init();
+// 自动解密配置中的 {{encrypted_value}} 变量
+const config = await enhancedClient.getConfig('app.properties');
+```
+
+### Express.js 集成
+
+```typescript
+import express from 'express';
+import { createAndInitEnhancedNacosConfig } from 'ankerutil-node';
+
+const app = express();
+
+const nacosClient = await createAndInitEnhancedNacosConfig({
+  serverAddr: '127.0.0.1:8848',
+  namespace: 'production',
+  secretManager: {
+    Name: process.env.SECRET_MANAGE_NAME!,
+    Key: process.env.SECRET_MANAGE_KEY!,
+    Domain: process.env.SECRET_MANAGE_DOMAIN!
+  }
+});
+
+let appConfig = await nacosClient.getJsonConfig('app-config');
+
+app.get('/config', (req, res) => res.json(appConfig));
+```
+
+### NestJS 集成
+
+```typescript
+import { Injectable, OnModuleInit } from '@nestjs/common';
+import { EnhancedNacosConfig, createAndInitEnhancedNacosConfig } from 'ankerutil-node';
+
+@Injectable()
+export class ConfigService implements OnModuleInit {
+  private nacosClient: EnhancedNacosConfig;
+  private config: any = {};
+
+  async onModuleInit() {
+    this.nacosClient = await createAndInitEnhancedNacosConfig({
+      serverAddr: process.env.NACOS_SERVER || '127.0.0.1:8848',
+      namespace: process.env.NACOS_NAMESPACE || 'default',
+      secretManager: {
+        Name: process.env.SECRET_MANAGE_NAME!,
+        Key: process.env.SECRET_MANAGE_KEY!,
+        Domain: process.env.SECRET_MANAGE_DOMAIN!
+      }
+    });
+
+    this.config = await this.nacosClient.getJsonConfig('app-config');
+  }
+
+  getConfig(key?: string) {
+    return key ? this.config[key] : this.config;
+  }
+}
+```
+
+## 配置格式
+
+### 敏感配置格式
+
+支持在配置中使用 `{{变量名}}` 形式的敏感字段：
+
+```json
+{
+  "SecretManage": {
+    "Key": "your-secret-key",
+    "Domain": "https://your-secret-service.com",
+    "Name": "your-system-name"
+  },
+  "database": {
+    "host": "localhost",
+    "password": "{{encrypted_db_password}}"
+  },
+  "redis": {
+    "password": "{{encrypted_redis_password}}"
+  }
+}
+```
+
+支持 JSON、YAML、INI 三种格式。
+
+## API 参考
 
 ### Encryption
 
 ```typescript
 class Encryption {
   init(cbcKey: string, rootKey: { [version: string]: string }): void;
-  encrypt(text: string | null | undefined): string | null;
-  decrypt(encryptedText: string | null | undefined): string | null;
+  encrypt(text: string): string | null;
+  decrypt(encryptedText: string): string | null;
 }
 ```
 
@@ -137,33 +210,54 @@ class Encryption {
 
 ```typescript
 class Hash {
-  static sha256(text: string | null | undefined, encoding?: 'hex' | 'base64'): string | null;
-  static normalize(text: string | null | undefined): string | null;
-  static normalizeSha256(text: string | null | undefined, encoding?: 'hex' | 'base64'): string | null;
-  static verify(text: string | null | undefined, expectedHash: string, encoding?: 'hex' | 'base64'): boolean;
-  static verifyNormalized(text: string | null | undefined, expectedHash: string, encoding?: 'hex' | 'base64'): boolean;
+  static sha256(text: string, encoding?: 'hex' | 'base64'): string | null;
+  static normalizeSha256(text: string, encoding?: 'hex' | 'base64'): string | null;
+  static verifyNormalized(text: string, expectedHash: string, encoding?: 'hex' | 'base64'): boolean;
 }
 ```
 
-### 装饰器配置
+### NacosConfig
 
-#### EncryptedFieldOptions
 ```typescript
-interface EncryptedFieldOptions {
-  autoEncrypt?: boolean;  // 是否自动加密写入，默认true
-  autoDecrypt?: boolean;  // 是否自动解密读取，默认true
-  hashField?: string;     // 哈希字段名称，如果指定则会在加密前生成哈希
-  hashEncoding?: 'hex' | 'base64'; // 哈希编码格式，默认hex
+class NacosConfig {
+  constructor(options: NacosConfigOptions);
+  init(): Promise<void>;
+  getConfig(dataId: string, group?: string): Promise<string | null>;
+  getJsonConfig<T>(dataId: string, group?: string): Promise<T | null>;
+  subscribe(param: { dataId: string; group?: string; onChanged: (content: string) => void }): Promise<void>;
+  close(): Promise<void>;
 }
 ```
 
-#### EncryptedJsonFieldOptions
+### EnhancedNacosConfig
+
+继承 `NacosConfig` 的所有方法，额外支持：
+
 ```typescript
-interface EncryptedJsonFieldOptions {
-  autoEncrypt?: boolean;  // 是否自动加密写入，默认true
-  autoDecrypt?: boolean;  // 是否自动解密读取，默认true
-  paths: string[];        // 需要加密的JSON路径
-  hashField?: string;     // 哈希字段名称，如果指定则会在加密前生成哈希
-  hashEncoding?: 'hex' | 'base64'; // 哈希编码格式，默认hex
+class EnhancedNacosConfig extends NacosConfig {
+  // 支持敏感配置解密的配置读取
+  // subscribe 回调增加 isDecrypted 参数
+  subscribe(param: { 
+    dataId: string; 
+    group?: string; 
+    onChanged: (content: string, isDecrypted?: boolean) => void 
+  }): Promise<void>;
 }
 ```
+
+## 环境变量
+
+```bash
+# Nacos 配置
+NACOS_SERVER=127.0.0.1:8848
+NACOS_NAMESPACE=production
+
+# 敏感配置管理
+SECRET_MANAGE_NAME=your-system-name
+SECRET_MANAGE_KEY=your-secret-key  
+SECRET_MANAGE_DOMAIN=https://your-secret-service.com
+```
+
+## 许可证
+
+MIT
