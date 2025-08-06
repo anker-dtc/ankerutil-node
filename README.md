@@ -95,14 +95,11 @@ await nacosConfig.subscribe({
 ```typescript
 import { EnhancedNacosConfig } from 'ankerutil-node';
 
-// 环境变量配置
-process.env.SECRET_MANAGE_NAME = 'DTC';
-process.env.SECRET_MANAGE_KEY = 'your-secret-key';
-process.env.SECRET_MANAGE_DOMAIN = 'https://your-secret-service.com';
-
 const enhancedClient = new EnhancedNacosConfig({
-  serverAddr: '127.0.0.1:8848',
-  namespace: 'production',
+  serverAddr: process.env.NACOS_SERVER_ADDR!,
+  namespace: process.env.NACOS_NAMESPACE!,
+  username: process.env.NACOS_USERNAME,
+  password: process.env.NACOS_PASSWORD,
   secretManager: {
     Name: process.env.SECRET_MANAGE_NAME!,
     Key: process.env.SECRET_MANAGE_KEY!,
@@ -124,8 +121,10 @@ import { createAndInitEnhancedNacosConfig } from 'ankerutil-node';
 const app = express();
 
 const nacosClient = await createAndInitEnhancedNacosConfig({
-  serverAddr: '127.0.0.1:8848',
-  namespace: 'production',
+  serverAddr: process.env.NACOS_SERVER_ADDR!,
+  namespace: process.env.NACOS_NAMESPACE!,
+  username: process.env.NACOS_USERNAME,
+  password: process.env.NACOS_PASSWORD,
   secretManager: {
     Name: process.env.SECRET_MANAGE_NAME!,
     Key: process.env.SECRET_MANAGE_KEY!,
@@ -134,7 +133,6 @@ const nacosClient = await createAndInitEnhancedNacosConfig({
 });
 
 let appConfig = await nacosClient.getJsonConfig('app-config');
-
 app.get('/config', (req, res) => res.json(appConfig));
 ```
 
@@ -151,15 +149,17 @@ export class ConfigService implements OnModuleInit {
 
   async onModuleInit() {
     this.nacosClient = await createAndInitEnhancedNacosConfig({
-      serverAddr: process.env.NACOS_SERVER || '127.0.0.1:8848',
-      namespace: process.env.NACOS_NAMESPACE || 'default',
+      serverAddr: process.env.NACOS_SERVER_ADDR!,
+      namespace: process.env.NACOS_NAMESPACE!,
+      username: process.env.NACOS_USERNAME,
+      password: process.env.NACOS_PASSWORD,
       secretManager: {
         Name: process.env.SECRET_MANAGE_NAME!,
         Key: process.env.SECRET_MANAGE_KEY!,
         Domain: process.env.SECRET_MANAGE_DOMAIN!
       }
     });
-
+    
     this.config = await this.nacosClient.getJsonConfig('app-config');
   }
 
@@ -245,17 +245,37 @@ class EnhancedNacosConfig extends NacosConfig {
 }
 ```
 
-## 环境变量
+## 环境变量配置
+
+外部项目需要在环境变量中配置以下变量：
 
 ```bash
-# Nacos 配置
-NACOS_SERVER=127.0.0.1:8848
-NACOS_NAMESPACE=production
+# Nacos 服务器配置
+NACOS_SERVER_ADDR=44.230.8.14:8848
+NACOS_NAMESPACE=beta-us
+NACOS_USERNAME=dev
+NACOS_PASSWORD=rEiUcgAt6nKTBZ77dpKae8irnTKwgPzs
 
-# 敏感配置管理
-SECRET_MANAGE_NAME=your-system-name
-SECRET_MANAGE_KEY=your-secret-key  
-SECRET_MANAGE_DOMAIN=https://your-secret-service.com
+# 敏感配置管理（可选）
+SECRET_MANAGE_NAME=DTC
+SECRET_MANAGE_KEY=118c02b71e211049304bd70a0c971d77
+SECRET_MANAGE_DOMAIN=https://vsaas-api-ci.eufylife.com
+```
+
+然后在代码中通过 `process.env` 读取并传入配置：
+
+```typescript
+const nacosClient = new EnhancedNacosConfig({
+  serverAddr: process.env.NACOS_SERVER_ADDR!,
+  namespace: process.env.NACOS_NAMESPACE!,
+  username: process.env.NACOS_USERNAME,
+  password: process.env.NACOS_PASSWORD,
+  secretManager: {
+    Name: process.env.SECRET_MANAGE_NAME!,
+    Key: process.env.SECRET_MANAGE_KEY!,
+    Domain: process.env.SECRET_MANAGE_DOMAIN!
+  }
+});
 ```
 
 ## 许可证
