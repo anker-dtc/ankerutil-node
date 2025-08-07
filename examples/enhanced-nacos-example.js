@@ -190,9 +190,9 @@ async function expressStyleExample() {
       serverAddr: '127.0.0.1:8848',
       namespace: 'production',
       secretManager: {
-        Name: process.env.SECRET_SYSTEM_NAME || 'test-system',
-        Key: process.env.SECRET_KEY || 'test-secret-key-12345678',
-        Domain: process.env.SECRET_DOMAIN || 'https://secret-service.example.com'
+        Name: process.env.SECRET_MANAGE_NAME || 'test-system',
+        Key: process.env.SECRET_MANAGE_KEY || 'test-secret-key-12345678',
+        Domain: process.env.SECRET_MANAGE_DOMAIN || 'https://secret-service.example.com'
       },
       enableSecretProcessing: true,
       secretFailureStrategy: 'return_original'

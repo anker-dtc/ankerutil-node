@@ -109,27 +109,36 @@ export class SecretManager {
       console.log('[SecretManager] 开始处理敏感配置');
       console.log('[SecretManager] 配置内容长度:', content.length);
       console.log('[SecretManager] 配置内容预览:', content.substring(0, 200) + '...');
+      console.log('[SecretManager] 使用外部传入配置:', JSON.stringify(this.config, null, 2));
       
-      // 解析配置以检查是否包含 SecretManage 配置
-      console.log('[SecretManager] 解析配置内容...');
-      const secretConfig = this.parseConfigContent(content);
-      console.log('[SecretManager] 解析结果:', JSON.stringify(secretConfig, null, 2));
-      
-      // 如果没有找到有效的 SecretManage 配置，返回原始内容
-      if (!this.isValidSecretConfig(secretConfig)) {
-        console.log('[SecretManager] SecretManage 配置不完整，返回原始内容');
-        console.log('[SecretManager] 当前 this.config:', JSON.stringify(this.config, null, 2));
+      // 检查配置内容中是否包含敏感字段标识符 {{xxx}}
+      if (!this.containsSecretFields(content)) {
+        console.log('[SecretManager] 配置内容不包含敏感字段标识符，返回原始内容');
         return content;
       }
 
-      // 更新当前配置
-      console.log('[SecretManager] 更新配置前 this.config:', JSON.stringify(this.config, null, 2));
-      this.config = secretConfig;
-      console.log('[SecretManager] 更新配置后 this.config:', JSON.stringify(this.config, null, 2));
+      // 解析配置内容中的 SecretManage 配置
+      console.log('[SecretManager] 解析配置内容中的 SecretManage 配置...');
+      const parsedConfig = this.parseConfigContent(content);
+      console.log('[SecretManager] 解析结果:', JSON.stringify(parsedConfig, null, 2));
+      
+      // 确定最终使用的配置（优先使用外部传入的配置）
+      const finalConfig = this.mergeConfigs(parsedConfig);
+      console.log('[SecretManager] 最终使用的配置:', JSON.stringify({
+        Name: finalConfig.Name,
+        Key: finalConfig.Key ? finalConfig.Key.substring(0, 8) + '...' : 'undefined',
+        Domain: finalConfig.Domain
+      }, null, 2));
 
-      // 调用敏感配置管理 API
+      // 验证最终配置的完整性
+      if (!this.isValidSecretConfig(finalConfig)) {
+        console.log('[SecretManager] 最终配置不完整，返回原始内容');
+        return content;
+      }
+
+      // 调用敏感配置管理 API（使用最终配置，但不覆盖 this.config）
       console.log('[SecretManager] 调用敏感配置管理 API...');
-      const decryptedContent = await this.callSecretManageAPI(content);
+      const decryptedContent = await this.callSecretManageAPIWithConfig(content, finalConfig);
       
       console.log('[SecretManager] 敏感配置处理成功');
       return decryptedContent;
@@ -139,7 +148,7 @@ export class SecretManager {
       console.error('[SecretManager] 错误类型:', error instanceof Error ? error.constructor.name : typeof error);
       console.error('[SecretManager] 错误信息:', error instanceof Error ? error.message : String(error));
       console.error('[SecretManager] 错误堆栈:', error instanceof Error ? error.stack : 'No stack trace');
-      console.error('[SecretManager] 当前 this.config:', JSON.stringify(this.config, null, 2));
+      console.error('[SecretManager] 外部传入配置:', JSON.stringify(this.config, null, 2));
       
       throw new SecretManageError(
         `处理敏感配置失败: ${error instanceof Error ? error.message : String(error)}`,
@@ -263,6 +272,31 @@ export class SecretManager {
   }
 
   /**
+   * 检查配置内容是否包含敏感字段标识符
+   * @param content 配置内容
+   * @returns 是否包含敏感字段
+   */
+  private containsSecretFields(content: string): boolean {
+    // 检查是否包含 {{xxx}} 格式的敏感字段标识符
+    const secretFieldPattern = /\{\{[^}]+\}\}/;
+    return secretFieldPattern.test(content);
+  }
+
+  /**
+   * 合并配置（优先使用外部传入的配置）
+   * @param parsedConfig 从配置内容中解析出的配置
+   * @returns 合并后的配置
+   */
+  private mergeConfigs(parsedConfig: SecretManageConfig): SecretManageConfig {
+    return {
+      // 优先使用外部传入的配置，如果外部配置为空才使用解析出的配置
+      Name: this.config.Name || parsedConfig.Name,
+      Key: this.config.Key || parsedConfig.Key,
+      Domain: this.config.Domain || parsedConfig.Domain
+    };
+  }
+
+  /**
    * 检查 SecretManage 配置是否有效
    */
   private isValidSecretConfig(config: SecretManageConfig): boolean {
@@ -282,37 +316,38 @@ export class SecretManager {
   }
 
   /**
-   * 调用敏感配置管理 API
+   * 调用敏感配置管理 API（使用指定配置）
    * @param content 配置内容
+   * @param config 使用的配置
    * @returns 解密后的配置内容
    */
-  private async callSecretManageAPI(content: string): Promise<string> {
+  private async callSecretManageAPIWithConfig(content: string, config: SecretManageConfig): Promise<string> {
     console.log('[SecretManager] 调用 API 前的配置检查:');
-    console.log('[SecretManager] this.config.Name:', this.config.Name);
-    console.log('[SecretManager] this.config.Key:', this.config.Key ? `${this.config.Key.substring(0, 8)}...` : 'undefined');
-    console.log('[SecretManager] this.config.Domain:', this.config.Domain);
+    console.log('[SecretManager] config.Name:', config.Name);
+    console.log('[SecretManager] config.Key:', config.Key ? `${config.Key.substring(0, 8)}...` : 'undefined');
+    console.log('[SecretManager] config.Domain:', config.Domain);
     
     const timestamp = Math.floor(Date.now() / 1000);
     console.log('[SecretManager] timestamp:', timestamp);
     
     // 生成签名
-    const message = `SecretManageAnker+${timestamp}+${this.config.Name}+${this.config.Key}`;
-    console.log('[SecretManager] 签名消息:', `SecretManageAnker+${timestamp}+${this.config.Name}+${this.config.Key ? this.config.Key.substring(0, 8) + '...' : 'undefined'}`);
+    const message = `SecretManageAnker+${timestamp}+${config.Name}+${config.Key}`;
+    console.log('[SecretManager] 签名消息:', `SecretManageAnker+${timestamp}+${config.Name}+${config.Key ? config.Key.substring(0, 8) + '...' : 'undefined'}`);
     
     try {
-      const signature = this.generateSignature(message, this.config.Key);
+      const signature = this.generateSignature(message, config.Key);
       console.log('[SecretManager] 签名生成成功:', signature.substring(0, 8) + '...');
     } catch (signatureError) {
       console.error('[SecretManager] 签名生成失败:', signatureError);
       throw signatureError;
     }
     
-    const signature = this.generateSignature(message, this.config.Key);
+    const signature = this.generateSignature(message, config.Key);
 
     // 构造请求体
     const requestBody: SecretManageRequest = {
       auth: {
-        system_name: this.config.Name,
+        system_name: config.Name,
         timestamp,
         signature
       },
@@ -320,7 +355,7 @@ export class SecretManager {
     };
 
     const jsonData = JSON.stringify(requestBody);
-    const url = `${this.config.Domain}/secretmanage/decrypt/config`;
+    const url = `${config.Domain}/secretmanage/decrypt/config`;
 
     return new Promise((resolve, reject) => {
       const urlObj = new URL(url);
@@ -416,6 +451,16 @@ export class SecretManager {
       req.write(jsonData);
       req.end();
     });
+  }
+
+  /**
+   * 调用敏感配置管理 API（兼容性方法，使用实例配置）
+   * @param content 配置内容
+   * @returns 解密后的配置内容
+   */
+  private async callSecretManageAPI(content: string): Promise<string> {
+    // 委托给新的方法，使用实例配置
+    return this.callSecretManageAPIWithConfig(content, this.config);
   }
 }
 

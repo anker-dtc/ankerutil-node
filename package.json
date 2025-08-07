@@ -30,8 +30,8 @@
     "node": ">=18.0.0"
   },
   "peerDependencies": {
-    "typeorm": ">=0.2.0",
-    "nacos": ">=2.0.0"
+    "nacos": "^2.6.0",
+    "typeorm": ">=0.2.0"
   },
   "peerDependenciesMeta": {
     "typeorm": {
