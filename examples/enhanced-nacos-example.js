@@ -5,9 +5,7 @@
 
 const { 
   EnhancedNacosConfig, 
-  createAndInitEnhancedNacosConfig,
-  SecretManager,
-  createSecretManager 
+  createAndInitEnhancedNacosConfig 
 } = require('ankerutil-node');
 
 // 基础增强版 Nacos 使用示例
@@ -20,13 +18,15 @@ async function enhancedBasicExample() {
       // 基础 Nacos 配置
       serverAddr: '127.0.0.1:8848',
       namespace: 'development',
-      requestTimeout: 6000,
+      username: 'nacos',
+      password: 'nacos',
+      requestTimeout: 10000,
       
       // 敏感配置管理配置
       secretManager: {
-        Name: 'DTC',
-        Key: '118c02b71e211049304bd70a0c971d77',
-        Domain: 'https://vsaas-api-ci.eufylife.com'
+        Name: 'YourSystemName',
+        Key: 'your-secret-key',
+        Domain: 'https://your-secret-service.com'
       },
       
       // 启用敏感配置处理
@@ -47,19 +47,6 @@ async function enhancedBasicExample() {
     const dbConfig = await enhancedNacosConfig.getJsonConfig('database-config.json');
     console.log('数据库配置:', dbConfig);
 
-    // 监听配置变更（自动处理敏感字段）
-    await enhancedNacosConfig.subscribe({
-      dataId: 'app.properties',
-      group: 'DEFAULT_GROUP',
-      onChanged: (content, isDecrypted) => {
-        console.log('配置变更通知:');
-        console.log('- 内容:', content);
-        console.log('- 是否已解密:', isDecrypted);
-      }
-    });
-
-    console.log('配置监听已启动（支持敏感配置解密）');
-
     // 动态配置管理
     console.log('\n=== 动态配置管理 ===');
     
@@ -74,109 +61,10 @@ async function enhancedBasicExample() {
     enhancedNacosConfig.setSecretProcessingEnabled(true);
     console.log('已重新启用敏感配置处理');
 
-    // 关闭客户端
-    setTimeout(async () => {
-      await enhancedNacosConfig.close();
-      console.log('增强版 Nacos 客户端已关闭');
-    }, 5000);
+    console.log('增强版 Nacos 客户端示例完成');
 
   } catch (error) {
     console.error('增强版示例运行失败:', error.message);
-  }
-}
-
-// 独立敏感配置管理器示例
-async function secretManagerExample() {
-  try {
-    console.log('\n=== 独立敏感配置管理器示例 ===');
-
-    // 创建独立的敏感配置管理器
-    const secretManager = createSecretManager({
-      Name: 'DTC',
-      Key: '118c02b71e211049304bd70a0c971d77',
-      Domain: 'https://vsaas-api-ci.eufylife.com'
-    });
-
-    // 模拟不同格式的配置内容
-    const configs = [
-      // JSON 格式配置
-      {
-        name: 'JSON配置',
-        content: JSON.stringify({
-          "SecretManage": {
-            "Key": "118c02b71e211049304bd70a0c971d77",
-            "Domain": "https://vsaas-api-ci.eufylife.com",
-            "Name": "DTC"
-          },
-          "database": {
-            "host": "localhost",
-            "port": 3306,
-            "username": "admin",
-            "password": "{{encrypted_password_12345}}"
-          },
-          "redis": {
-            "host": "localhost",
-            "port": 6379,
-            "password": "{{encrypted_redis_pass}}"
-          }
-        }, null, 2)
-      },
-      
-      // YAML 格式配置
-      {
-        name: 'YAML配置',
-        content: `SecretManage.Name: test-system
-SecretManage.Key: test-secret-key-12345678
-SecretManage.Domain: https://secret-service.example.com
-
-database:
-  host: localhost
-  port: 3306
-  username: admin
-  password: "{{encrypted_password_12345}}"
-
-redis:
-  host: localhost
-  port: 6379
-  password: "{{encrypted_redis_pass}}"`
-      },
-      
-      // INI 格式配置
-      {
-        name: 'INI配置',
-        content: `SecretManage.Name=test-system
-SecretManage.Key=test-secret-key-12345678
-SecretManage.Domain=https://secret-service.example.com
-
-[database]
-host=localhost
-port=3306
-username=admin
-password={{encrypted_password_12345}}
-
-[redis]
-host=localhost
-port=6379
-password={{encrypted_redis_pass}}`
-      }
-    ];
-
-    // 处理不同格式的配置
-    for (const config of configs) {
-      console.log(`\n处理 ${config.name}:`);
-      console.log('原始配置:', config.content.substring(0, 100) + '...');
-      
-      try {
-        const processedContent = await secretManager.processSecretConfig(config.content);
-        console.log('处理结果:', processedContent.substring(0, 100) + '...');
-        console.log('处理状态: 成功');
-      } catch (error) {
-        console.log('处理状态: 失败 -', error.message);
-      }
-    }
-
-  } catch (error) {
-    console.error('敏感配置管理器示例失败:', error.message);
   }
 }
 
@@ -189,10 +77,12 @@ async function expressStyleExample() {
     const enhancedClient = await createAndInitEnhancedNacosConfig({
       serverAddr: '127.0.0.1:8848',
       namespace: 'production',
+      username: process.env.NACOS_USERNAME || 'nacos',
+      password: process.env.NACOS_PASSWORD || 'nacos',
       secretManager: {
-        Name: process.env.SECRET_MANAGE_NAME || 'test-system',
-        Key: process.env.SECRET_MANAGE_KEY || 'test-secret-key-12345678',
-        Domain: process.env.SECRET_MANAGE_DOMAIN || 'https://secret-service.example.com'
+        Name: process.env.SECRET_SYSTEM_NAME || 'MySystem',
+        Key: process.env.SECRET_KEY || 'your-secret-key',
+        Domain: process.env.SECRET_DOMAIN || 'https://your-secret-service.com'
       },
       enableSecretProcessing: true,
       secretFailureStrategy: 'return_original'
@@ -209,31 +99,6 @@ async function expressStyleExample() {
     } catch (error) {
       console.warn('配置加载失败，使用默认配置:', error.message);
     }
-
-    // 监听配置变更
-    await enhancedClient.subscribe({
-      dataId: 'app-config',
-      onChanged: (content, isDecrypted) => {
-        try {
-          appConfig = JSON.parse(content);
-          console.log(`应用配置已更新 ${isDecrypted ? '(已解密)' : '(无需解密)'}`);
-        } catch (error) {
-          console.error('应用配置解析失败:', error);
-        }
-      }
-    });
-
-    await enhancedClient.subscribe({
-      dataId: 'database-config',
-      onChanged: (content, isDecrypted) => {
-        try {
-          dbConfig = JSON.parse(content);
-          console.log(`数据库配置已更新 ${isDecrypted ? '(已解密)' : '(无需解密)'}`);
-        } catch (error) {
-          console.error('数据库配置解析失败:', error);
-        }
-      }
-    });
 
     // 模拟 Express.js 中间件
     const configMiddleware = (req, res, next) => {
@@ -259,11 +124,7 @@ async function expressStyleExample() {
       database: dbConfig
     }, null, 2));
 
-    // 清理
-    setTimeout(async () => {
-      await enhancedClient.close();
-      console.log('Express 风格示例完成');
-    }, 3000);
+    console.log('Express 风格示例完成');
 
   } catch (error) {
     console.error('Express 风格示例失败:', error.message);
@@ -279,6 +140,8 @@ async function errorHandlingExample() {
     const robustClient = new EnhancedNacosConfig({
       serverAddr: '127.0.0.1:8848',
       namespace: 'test',
+      username: 'nacos',
+      password: 'nacos',
       secretManager: {
         Name: 'test-system',
         Key: 'invalid-key', // 故意使用无效密钥
@@ -312,7 +175,7 @@ async function errorHandlingExample() {
     });
     console.log('已修复敏感配置管理器配置');
 
-    await robustClient.close();
+    console.log('错误处理示例完成');
 
   } catch (error) {
     console.error('错误处理示例失败:', error.message);
@@ -324,7 +187,6 @@ async function runAllExamples() {
   console.log('开始运行增强版 Nacos 配置示例...\n');
   
   await enhancedBasicExample();
-  await secretManagerExample();
   await expressStyleExample();
   await errorHandlingExample();
   
@@ -334,7 +196,6 @@ async function runAllExamples() {
 // 导出所有示例
 module.exports = {
   enhancedBasicExample,
-  secretManagerExample,
   expressStyleExample,
   errorHandlingExample,
   runAllExamples
